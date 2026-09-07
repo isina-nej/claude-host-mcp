@@ -12,13 +12,9 @@
 
 [English](README.md) | فارسی
 
-## چرا این پروژه؟
+## 🚀 نصب — سیستم‌عاملت رو انتخاب کن (۶۰ ثانیه)
 
-تسک‌های Cowork/Code در Claude Desktop داخل سندباکس محدود اجرا می‌شوند. این سرور یک پل به بیرون است: Claude با **۱۱۴ ابزار تایپ‌شده و ۸ ریسورس (۵ ثابت و ۳ تمپلیت)** روی میزبان واقعی کار می‌کند — شل، ترمینال ماندگار، جاب پس‌زمینه، فایل، جست‌وجو، گیت، مانیتورینگ، ژورنال، پورت، داکر، پکیج، شبکه، اسنپشات، زمان، حافظه، تفکر، وب، مرورگر، گیت‌هاب، دیتابیس، نقشه، درایو، اسلک — همه با ریشه‌های محدود، موتور پالیسی، لاگ حسابرسی و گاردریل دستورهای خطرناک.
-
-هدف طراحی: هر کاری که یک توسعه‌دهنده/ادمین لینوکس در ترمینال می‌کند، ایجنت هم بتواند بکند — معنایی، قابل مشاهده، قابل لغو، قابل حسابرسی و قابل برگشت.
-
-## شروع سریع (۶۰ ثانیه)
+> **یک کدبیس، سه سیستم‌عامل.** همین ۱۱۴ ابزار روی لینوکس، مک و ویندوز — کد خودش را با `platform.system` تطبیق می‌دهد.
 
 ```bash
 git clone https://github.com/isina-nej/claude-host-mcp.git
@@ -41,6 +37,22 @@ diagnose "127.0.0.1:3000"  →  مسیر DNS به TCP به مالک به HTTP ب
 memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  سشن بعد یادش می‌ماند
 ```
 
+---
+
+
+## 📸 ببین چطور کار می‌کند
+
+| 🔍 `diagnose` نقطه خرابی را پیدا می‌کند | 🖥️ ترمینال‌ها زنده می‌مانند | ↩️ اسنپشات = بازگشت |
+|---|---|
+| ![دموی diagnose](assets/demo-diagnose.gif) | ![دموی ترمینال](assets/demo-terminal.gif) | ![دموی اسنپشات](assets/demo-snapshot.gif) |
+| یک دستور DNS → TCP → مالک → HTTP → منابع را اجرا می‌کند و می‌گوید کدام لایه خراب است. | سرورهای dev و REPL بین دستورها زنده می‌مانند. خواندن با cursor و `wait` به‌جای polling. | قبل از ویرایش پرریسک `file_version` و اگر تست خراب شد `file_restore`. |
+
+
+## چرا این پروژه؟
+
+تسک‌های Cowork/Code در Claude Desktop داخل سندباکس محدود اجرا می‌شوند. این سرور یک پل به بیرون است: Claude با **۱۱۴ ابزار تایپ‌شده و ۸ ریسورس (۵ ثابت و ۳ تمپلیت)** روی میزبان واقعی کار می‌کند — شل، ترمینال ماندگار، جاب پس‌زمینه، فایل، جست‌وجو، گیت، مانیتورینگ، ژورنال، پورت، داکر، پکیج، شبکه، اسنپشات، زمان، حافظه، تفکر، وب، مرورگر، گیت‌هاب، دیتابیس، نقشه، درایو، اسلک — همه با ریشه‌های محدود، موتور پالیسی، لاگ حسابرسی و گاردریل دستورهای خطرناک.
+
+هدف طراحی: هر کاری که یک توسعه‌دهنده/ادمین لینوکس در ترمینال می‌کند، ایجنت هم بتواند بکند — معنایی، قابل مشاهده، قابل لغو، قابل حسابرسی و قابل برگشت.
 ## ابزارها
 
 ۱۱۴ ابزار در دوازده گروه (تأییدشده زنده با handshake استاندارد). فقط ابزارهای مخرب تأیید می‌خواهند (بخش [سیاست تأیید](#سیاست-تأیید)).
@@ -282,60 +294,6 @@ memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  سشن بعد ی
 - لینوکس، مک یا ویندوز؛ پایتون 3.10+
 - Claude Desktop با پشتیبانی MCP محلی
 - `uv` اختیاری است؛ نصاب‌ها در صورت نبود به `venv` و pip برمی‌گردند
-
-## نصب
-
-لینوکس (یا WSL):
-
-```bash
-git clone https://github.com/isina-nej/claude-host-mcp.git
-cd claude-host-mcp
-chmod +x install.sh install-mac.sh doctor.sh uninstall.sh
-./install.sh
-```
-
-مک:
-
-```bash
-git clone https://github.com/isina-nej/claude-host-mcp.git
-cd claude-host-mcp
-chmod +x install.sh install-mac.sh doctor.sh uninstall.sh
-./install-mac.sh
-```
-
-ویندوز (PowerShell — از اسکریپت‌های `.ps1` استفاده کنید، نه `.sh`):
-
-```powershell
-git clone https://github.com/isina-nej/claude-host-mcp.git
-cd claude-host-mcp
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\install.ps1
-```
-
-نصاب این کارها را می‌کند:
-
-1. کپی سورس به `~/.local/share/claude-host-mcp` (در ویندوز `%USERPROFILE%\.local\share\claude-host-mcp`)
-2. ساخت venv ایزوله و نصب `mcp>=2,<3`
-3. پیدا کردن کانفیگ Claude — مک `~/Library/Application Support/Claude/`، ویندوز `%APPDATA%\Claude\`، لینوکس `~/.config/Claude-3p/` یا `~/.config/Claude/`
-4. ثبت سرور `host-system` (اول از کانفیگ بکاپ می‌گیرد)
-5. فعال‌سازی فلگ‌های local-dev در پروفایل فعال config-library نسخه 3P، اگر وجود داشت (فقط لینوکس 3P؛ در بقیه no-op است)
-
-بعد Claude Desktop را کامل ببندید و دوباره باز کنید و یک تسک/سشن جدید بسازید.
-
-تست سلامت:
-
-```text
-Use the host-system MCP tool host_identity.
-```
-
-اگر نام میزبان واقعی و کاربر دسکتاپ برگشت = نصب سالم است.
-
-مسیرهای سفارشی:
-
-```bash
-CLAUDE_DESKTOP_CONFIG="$HOME/path/claude_desktop_config.json" ./install.sh
-HOST_MCP_INSTALL_DIR="$HOME/custom-dir" ./install.sh
-```
 
 ## پیکربندی
 

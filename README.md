@@ -2,38 +2,77 @@
 
 ![version](https://img.shields.io/badge/version-0.5.0-blue) ![tools](https://img.shields.io/badge/tools-114-brightgreen) ![resources](https://img.shields.io/badge/resources-8-blueviolet) ![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey) ![license](https://img.shields.io/badge/license-MIT-yellow)
 
-> Local MCP server that gives Claude Desktop controlled access to the real host machine — not just its isolated VM/session.
+> **Give Claude Desktop hands on your real machine — safely.** One local MCP server (`host-system`) that lets Claude run shell, manage files, drive dev servers, inspect the system, use git, Docker, GitHub, databases, and the web — on Linux, macOS, and Windows — with approvals, audit, and rollback.
 
 ![claude-host-mcp hero](assets/hero.png)
 
-Built on MCP Python SDK **v2** (`MCPServer`), stdio transport. Runs as your normal user. Works on **Linux, macOS, Windows** — tools adapt per OS (Bash/PowerShell, ps/tasklist, systemd/launchd/sc, df/drive usage).
-
-**One server, full host:** persistent terminals · background jobs · files+search · git+worktrees · monitoring · Docker · GitHub/DB/Slack · snapshots · audit.
+- 🖥️ **Your host, not a sandbox.** Claude sees your real hostname, files, processes, ports — not the VM.
+- 🛡️ **Destructive = prompt.** Reads run free; deletes, kills, commits, restores, and external posts ask first.
+- 🔌 **One server, zero new deps.** 114 tools + 8 resources over stdio. Python 3.10+, `mcp>=2,<3`. Integrations are credential-gated and fail clean without keys.
 
 English | [فارسی](README.fa.md)
 
-## Why
+---
 
-Claude Desktop Cowork/Code tasks run in a restricted sandbox. This server bridges out: Claude calls **114 typed tools + 8 resources (5 static + 3 templates)** on the host — shell, persistent terminals, background jobs, files, search, git, system monitoring, journal, ports, Docker, packages, network, snapshots, time, memory, thinking, web fetch, web search, browser, GitHub, databases, maps, drive, Slack — with scoped file roots, a policy engine, audit trail, and dangerous-command guardrails.
+## 🚀 Install — pick your OS (60 seconds)
 
-Design goal: everything a Linux developer/admin does in a terminal, an agent can do — semantically, observably, cancellably, auditably, and reversibly.
+> **Install first, read later.** Same 114 tools everywhere — the code auto-adapts to your OS.
+>
+> Three installers, same result: an isolated venv at `~/.local/share/claude-host-mcp` and a `host-system` entry in your Claude config (backed up first).
 
-## Quick start (60 seconds)
+<details open>
+<summary><b>🐧 Linux / WSL</b></summary>
 
 ```bash
 git clone https://github.com/isina-nej/claude-host-mcp.git
 cd claude-host-mcp
 chmod +x install.sh install-mac.sh doctor.sh uninstall.sh
-./install.sh        # macOS: ./install-mac.sh · Windows: .\install.ps1
+./install.sh
 ```
 
-Then **fully restart Claude Desktop**, open a new session, and say:
+</details>
+
+<details>
+<summary><b>🍎 macOS</b></summary>
+
+```bash
+git clone https://github.com/isina-nej/claude-host-mcp.git
+cd claude-host-mcp
+chmod +x install.sh install-mac.sh doctor.sh uninstall.sh
+./install-mac.sh
+```
+
+Writes to `~/Library/Application Support/Claude/claude_desktop_config.json`.
+
+</details>
+
+<details>
+<summary><b>🪟 Windows (PowerShell — use the <code>.ps1</code> scripts)</b></summary>
+
+```powershell
+git clone https://github.com/isina-nej/claude-host-mcp.git
+cd claude-host-mcp
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\install.ps1
+```
+
+Writes to `%APPDATA%\Claude\claude_desktop_config.json`. Install dir: `%USERPROFILE%\.local\share\claude-host-mcp`.
+
+</details>
+
+**Then do all three, in order:**
+
+1. **Fully quit Claude Desktop** (not just the window) and reopen it.
+2. Open a **new** session/task.
+3. Say:
 
 ```text
 Use the host-system MCP tool host_identity.
 ```
 
-Real hostname + your user in the reply = wired to the host. Next taste:
+Real hostname + your desktop user in the reply = wired to the host. If not, run `./doctor.sh` (or `.\doctor.ps1`) and see [Diagnostics](#-diagnostics).
+
+**First taste after install:**
 
 ```text
 system_snapshot  →  cpu, memory, disk, load, temps, battery, gpu, net in one call
@@ -41,13 +80,83 @@ diagnose "127.0.0.1:3000"  →  DNS → TCP → owner → HTTP → resources, wi
 memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  it remembers next session
 ```
 
-## Tools
+Custom paths:
 
-114 tools in twelve groups (verified live via stdio handshake). Only destructive tools prompt (see [Approval policy](#approval-policy)).
+```bash
+CLAUDE_DESKTOP_CONFIG="$HOME/path/claude_desktop_config.json" ./install.sh
+HOST_MCP_INSTALL_DIR="$HOME/custom-dir" ./install.sh
+```
+
+| OS | Installer | Config location |
+|---|---|---|
+| Linux / WSL | `./install.sh` | `~/.config/Claude-3p/` or `~/.config/Claude/` |
+| macOS | `./install-mac.sh` | `~/Library/Application Support/Claude/` |
+| Windows | `.\install.ps1` | `%APPDATA%\Claude\` |
+
+> Same 114 tools everywhere — the Python code checks `platform.system()` and adapts: `run_command` → Bash or PowerShell, `process_list` → `ps` or `tasklist`, `service_status` → `systemctl` / `launchctl` / `sc`, `port_list` → `ss` / `lsof` / `netstat` fallback.
+
+---
+
+
+
+## 📸 See it in action
+
+| 🔍 `diagnose` finds the break | 🖥️ Terminals stay alive | ↩️ Snapshots = undo |
+|---|---|---|
+| ![diagnose demo](assets/demo-diagnose.gif) | ![terminal demo](assets/demo-terminal.gif) | ![snapshot demo](assets/demo-snapshot.gif) |
+| One call runs DNS → TCP → owner → HTTP → resources and tells you which layer failed. | Dev servers and REPLs keep running between calls. Cursor reads, `wait` instead of polling. | `file_version` before risky edits, `file_restore` when tests fail. |
+
+---
+
+
+
+## 📑 Contents
+
+- [Install — pick your OS](#-install--pick-your-os-60-seconds)
+- [What it actually does](#-what-it-actually-does)
+- [Tools (114, twelve groups)](#-tools)
+- [Resources (8)](#-resources)
+- [Approval policy](#-approval-policy) · [Safety at a glance](#-safety-at-a-glance) · [Security](#-security)
+- [Configuration](#-configuration) · [Diagnostics](#-diagnostics) · [Uninstall](#-uninstall) · [Development](#-development)
+
+---
+
+
+
+## 🧭 What it actually does
+
+Claude Desktop runs agent tasks in a restricted sandbox/VM. This server is a **bridge out**: it runs on your real machine as your normal user and exposes typed tools over MCP stdio. Claude calls them; you approve the dangerous ones.
+
+```
+Claude Desktop ──stdio/JSON-RPC──▶ host-system MCP ──▶ your machine
+                                        ├── shell + persistent terminals + background jobs
+                                        ├── files + search + snapshots (undo)
+                                        ├── git + worktrees
+                                        ├── system: processes, journal, ports, diagnose, Docker, packages
+                                        ├── mind: time, persistent memory, thinking chain
+                                        └── web + integrations: fetch, search, browser, GitHub, DBs, maps, drive, Slack
+                                        └── guarded by: scoped roots · profiles · approvals · audit · rate limits
+```
+
+**Concrete things Claude can now do for you:**
+
+- 🌡️ *"Why is my laptop hot?"* → `system_snapshot` shows CPU, temps, top processes in one call.
+- 🔌 *"Why won't localhost:3000 load?"* → `diagnose` pinpoints the failed layer instead of guessing.
+- 💻 *"Run my dev server and tell me when it's ready"* → `terminal_create` + `terminal_wait(pattern="ready")`, no polling loop.
+- ✏️ *"Patch server.py, and undo it if tests fail"* → `file_version` → `edit_file` → `file_restore`.
+- 🧠 *"Remember my stack"* → `memory_store` today, `memory_recall` next session.
+
+**What it does NOT do:** no privilege escalation (`sudo`/`su` blocked), no shutdown/reboot, no disk formatting, no push on your behalf (`git_commit` never pushes), no silent exfiltration (secrets never hit the audit log; integrations need your keys).
+## 🧰 Tools
+
+114 tools in twelve groups (verified live via stdio handshake). Only destructive tools prompt (see [Approval policy](#-approval-policy)).
 
 ![architecture](assets/architecture.png)
 
 **Reading guide:** Core = everyday shell+files · Terminal+Jobs = long-running work without polling · Files/Git = semantic editing with rollback · Ops+Docker = observe then act · Mind+Web+Integrations = memory and outside world, all credential-gated.
+
+<details>
+<summary><b>Show all 114 tools</b> — click to expand the full reference</summary>
 
 ### Core
 
@@ -236,7 +345,26 @@ All credential-gated: without keys they return setup errors, never crash. Secret
 | `audit_log` | Last N audit records (paths/sizes only, never contents). |
 | `audit_search` | Filter by tool substring + ok true/false. |
 
-## Resources
+| `fetch_text` | Fetch URL → LLM-ready text (boilerplate stripped, ≤3 redirects). |
+| `web_search` | Keyless duckduckgo or Brave with key. Disabled by default (`HOST_MCP_WEB_SEARCH`). |
+| `browser_fetch` | Headless-Chrome DOM text. Opt-in (`HOST_MCP_BROWSER=chrome`). |
+| `browser_shot` | Page screenshot PNG into writable roots. Opt-in; prompts. |
+| `github_repo` | Repo metadata (needs `GITHUB_TOKEN`). |
+| `github_issue` | List/get/create issues. Create prompts. |
+| `github_pr` | List/get/create PRs. Create prompts. |
+| `db_query` | SELECT-first SQL: sqlite via stdlib, postgres via `psql`. Writes need `confirm=true` + full profile. |
+| `db_tables` | List tables for a DSN. |
+| `redis_get` | GET a key via `redis-cli` (needs `REDIS_URL`). |
+| `maps_geocode` | Forward geocode (Google with key, else nominatim). |
+| `maps_directions` | Routing (Google with key, else straight-line km). |
+| `drive_list` | List `rclone` remote path (needs `RCLONE_REMOTE`). |
+| `drive_get` | Download remote file into writable roots. Prompts. |
+| `slack_list` | List channels (needs `SLACK_BOT_TOKEN`). |
+| `slack_send` | Post a message. Prompts. |
+
+</details>
+
+## 📡 Resources
 
 Live context without tool calls:
 
@@ -251,19 +379,19 @@ Live context without tool calls:
 | `terminal://{session}` | Buffer tail + alive state JSON. |
 | `job://{job_id}` | Status + stdout/stderr tails JSON. |
 
-## Approval policy
+## ✅ Approval policy
 
 Only destructive tools prompt: `file_delete`, `file_move`, `terminal_close`, `terminal_signal`, `process_kill`, `job_cancel`, `git_commit`, `git_reset`, `git_revert`, `git_merge`, `git_rebase`, `git_checkout`, `git_clean` (exec), `git_tag` (create/delete), `git_stash` (pop/drop), `git_worktree_*` (create/remove), `snapshot_restore`, `file_restore`, `docker_*` (mutations), `package_*` (mutations), `memory_forget`, `think_clear`, `github_issue`/`github_pr` (create), `db_query` (writes), `browser_shot`, `drive_get`, `slack_send`. Everything else — shell, reads, search, monitoring, journal, ports, diagnose — runs without approval friction.
 
 > Caveat: deletion via shell (`rm` / `Remove-Item` inside `run_command`) is NOT blocked and does NOT prompt. Use `file_delete` for guarded deletes that request approval.
 
-## Safety at a glance
+## 🛡️ Safety at a glance
 
 ![safety model](assets/safety.png)
 
 Three profiles, one rule: **destructive = prompt**. `safe` passes read-only tools only; `developer` (default) adds workspace+git+process+network; `full` unlocks Docker/package/service-style ops. `reset --hard` and `clean` execution additionally need `confirm=true` in the call itself. Secrets (tokens, DSNs) never reach the audit log.
 
-## Security
+## 🔒 Security
 
 Runs as your normal user. Anything that user can read/modify is reachable through tools.
 
@@ -282,60 +410,6 @@ Audit (`~/.local/share/claude-host-mcp/audit.jsonl`, override `HOST_MCP_AUDIT_FI
 - Linux, macOS, or Windows; Python 3.10+
 - Claude Desktop with local MCP support
 - `uv` optional; installers fall back to `venv` + pip
-
-## Install
-
-Linux (or WSL):
-
-```bash
-git clone https://github.com/isina-nej/claude-host-mcp.git
-cd claude-host-mcp
-chmod +x install.sh install-mac.sh doctor.sh uninstall.sh
-./install.sh
-```
-
-macOS:
-
-```bash
-git clone https://github.com/isina-nej/claude-host-mcp.git
-cd claude-host-mcp
-chmod +x install.sh install-mac.sh doctor.sh uninstall.sh
-./install-mac.sh
-```
-
-Windows (PowerShell — use the `.ps1` scripts, not the `.sh` ones):
-
-```powershell
-git clone https://github.com/isina-nej/claude-host-mcp.git
-cd claude-host-mcp
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\install.ps1
-```
-
-Installer does:
-
-1. Copies source to `~/.local/share/claude-host-mcp` (`%USERPROFILE%\.local\share\claude-host-mcp` on Windows)
-2. Creates isolated venv, installs `mcp>=2,<3`
-3. Detects Claude config — macOS `~/Library/Application Support/Claude/`, Windows `%APPDATA%\Claude\`, Linux `~/.config/Claude-3p/` or `~/.config/Claude/`
-4. Registers `host-system` server (backs up config first)
-5. Enables 3P local-dev MCP flags in active config-library profile, if present (Linux 3P only; no-op elsewhere)
-
-Then fully restart Claude Desktop, open a new task/session.
-
-Verify:
-
-```text
-Use the host-system MCP tool host_identity.
-```
-
-Real hostname + desktop user in reply = working.
-
-Custom paths:
-
-```bash
-CLAUDE_DESKTOP_CONFIG="$HOME/path/claude_desktop_config.json" ./install.sh
-HOST_MCP_INSTALL_DIR="$HOME/custom-dir" ./install.sh
-```
 
 ## Configuration
 
