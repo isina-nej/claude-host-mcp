@@ -661,46 +661,49 @@ def register(mcp) -> None:
     _MUT = _TA(read_only_hint=False, destructive_hint=True,
                idempotent_hint=False, open_world_hint=False)
 
+    import sys as _sys
+    _self = _sys.modules[__name__]  # impls; wrappers below share their names
+
     @mcp.tool(title="System snapshot", annotations=_RO)
     def system_snapshot() -> dict[str, Any]:
         """Point-in-time cpu/memory/disk/load/temps/battery/gpu/network/uptime."""
-        return system_snapshot()
+        return _self.system_snapshot()
 
     @mcp.tool(title="Query journal", annotations=_RO)
     def journal_query(service: str = "", lines: int = 50, priority: str = "",
                       since: str = "") -> str:
         """User journal tail, optional service/priority/since filter."""
-        return journal(service, lines, priority, since)
+        return _self.journal(service, lines, priority, since)
 
     @mcp.tool(title="List ports", annotations=_RO)
     def port_list() -> list[dict[str, Any]] | str:
         """Listening sockets with owner pid/process (/proc on Linux, ss/lsof fallback)."""
-        return port_list()
+        return _self.port_list()
 
     @mcp.tool(title="Check port", annotations=_RONET)
     def port_check(port: int, host: str = "127.0.0.1") -> dict[str, Any]:
         """TCP connect to host:port with latency."""
-        return port_check(port, host)
+        return _self.port_check(port, host)
 
     @mcp.tool(title="Port owner", annotations=_RO)
     def port_owner(port: int) -> dict[str, Any] | str:
         """Which process owns a listening port (pid, comm, cmdline, cwd)."""
-        return port_owner(port)
+        return _self.port_owner(port)
 
     @mcp.tool(title="Docker containers", annotations=_RO)
     def docker_ps(all: bool = False) -> str | list[dict[str, Any]]:
         """List containers (running by default, all=true for all)."""
-        return docker_ps(all)
+        return _self.docker_ps(all)
 
     @mcp.tool(title="Docker logs", annotations=_RO)
     def docker_logs(container: str, lines: int = 100) -> str:
         """Tail logs of a container."""
-        return docker_logs(container, lines)
+        return _self.docker_logs(container, lines)
 
     @mcp.tool(title="Docker inspect", annotations=_RO)
     def docker_inspect(container: str) -> dict[str, Any]:
         """State, image, ports and mounts of a container."""
-        return docker_inspect(container)
+        return _self.docker_inspect(container)
 
     @mcp.tool(title="Docker start", annotations=_MUT)
     def docker_start(container: str) -> dict[str, Any]:
@@ -726,17 +729,17 @@ def register(mcp) -> None:
     def docker_exec(container: str, command: str,
                     timeout_seconds: int = 60) -> dict[str, Any]:
         """Run sh -c inside a container. --privileged blocked."""
-        return docker_exec(container, command, timeout_seconds)
+        return _self.docker_exec(container, command, timeout_seconds)
 
     @mcp.tool(title="Package search", annotations=_RO)
     def package_search(query: str, count: int = 20) -> str:
         """Search native package manager (apt/dnf/pacman/brew/...)."""
-        return package_search(query, count)
+        return _self.package_search(query, count)
 
     @mcp.tool(title="Package info", annotations=_RO)
     def package_info(package: str) -> str:
         """Show package metadata from native manager."""
-        return package_info(package)
+        return _self.package_info(package)
 
     @mcp.tool(title="Package install", annotations=_MUT)
     def package_install(package: str) -> dict[str, Any]:
@@ -776,22 +779,22 @@ def register(mcp) -> None:
     @mcp.tool(title="DNS lookup", annotations=_RONET)
     def dns_lookup(host: str) -> dict[str, Any]:
         """Resolve a hostname to addresses."""
-        return dns_lookup(host)
+        return _self.dns_lookup(host)
 
     @mcp.tool(title="List interfaces", annotations=_RO)
     def interface_list() -> dict[str, Any]:
         """Network interfaces with state and MAC."""
-        return interface_list()
+        return _self.interface_list()
 
     @mcp.tool(title="List connections", annotations=_RO)
     def connection_list(limit: int = 50) -> str:
         """Active TCP/UDP sockets via ss or netstat."""
-        return connection_list(limit)
+        return _self.connection_list(limit)
 
     @mcp.tool(title="Diagnose target", annotations=_RONET)
     def diagnose(target: str) -> dict[str, Any]:
         """Layered diagnosis: host:port/http(s):// (DNS/TCP/owner/HTTP/resources) or service:NAME."""
-        return diagnose(target)
+        return _self.diagnose(target)
 
 
 __all__ = ["register", "system_snapshot", "journal", "port_list", "port_check",

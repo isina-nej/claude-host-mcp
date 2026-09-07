@@ -170,6 +170,9 @@ def profile_allows(tool: str) -> tuple[bool, str]:
 
 def register(mcp) -> None:
     """Register audit_log/audit_search tools on the given MCPServer."""
+    import sys as _sys
+
+    _impl_search = _sys.modules[__name__].audit_search  # impl; wrapper below shares the name
     from mcp.types import ToolAnnotations as _TA
 
     @mcp.tool(title="Audit log",
@@ -182,4 +185,4 @@ def register(mcp) -> None:
               annotations=_TA(read_only_hint=True, open_world_hint=False))
     def audit_search(tool: str = "", ok: str = "", count: int = 50) -> list[dict[str, Any]]:
         """Filter audit trail by tool name substring and ok true/false/any."""
-        return audit_search(tool, ok, count)
+        return _impl_search(tool, ok, count)

@@ -186,6 +186,11 @@ def file_restore(path: str) -> dict[str, Any]:
 
 
 def register(mcp) -> None:
+    import sys as _sys
+
+    _mod = _sys.modules[__name__]
+    _impl_version = _mod.file_version  # impls; wrappers below share their names
+    _impl_restore = _mod.file_restore
     from mcp.types import ToolAnnotations as _TA
 
     _RO = _TA(read_only_hint=True, open_world_hint=False)
@@ -211,9 +216,9 @@ def register(mcp) -> None:
     @mcp.tool(title="Version file", annotations=_RO)
     def file_version(path: str) -> dict[str, Any]:
         """One-call pre-edit snapshot of a single file."""
-        return file_version(path)
+        return _impl_version(path)
 
     @mcp.tool(title="Restore file version", annotations=_MUT)
     def file_restore(path: str) -> dict[str, Any]:
         """Restore the newest snapshot recorded for this path."""
-        return file_restore(path)
+        return _impl_restore(path)
