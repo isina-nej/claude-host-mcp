@@ -1,10 +1,23 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 - 2026-09-07
 
-- Deletion-gated approval policy: only file_delete, file_move, process_kill, git_commit are destructive_hint=True.
-- run_command/write_file/copy/download/http_fetch marked non-destructive; open_world_hint cleared where unused.
-- Docs (EN+FA) explain the approval policy and the rm-via-shell caveat.
+- Agent control plane: 88 tools + 8 resources across terminal, jobs, files, git, ops, snapshots, policy.
+- Terminal sessions: terminal_create/read/write/resize/signal/wait/close/list with cursor-based incremental output.
+- Background jobs: job_start/status/output/wait/cancel/list with watchdog timeout and 100-entry history.
+- Policy engine: HOST_MCP_PROFILE safe/developer/full, destructive classification, per-family rate limits (HOST_MCP_RATE_LIMIT).
+- Audit trail: JSONL audit_log/audit_search, paths and sizes only, never file contents.
+- Path hardening: symlink-aware resolve_under on write/move/delete paths.
+- Developer files: edit_file (dry_run diff), apply_patch, head/tail, directory_tree, fd/rg find_files/search_text, fuzzy_find.
+- Git toolkit: show/blame/tag/stash/checkout/reset/revert/merge/rebase/clean (dry_run default) + worktree create/list/remove; --hard/clean-exec require confirm=true.
+- Linux ops: system_snapshot (cpu/mem/disk/load/temp/battery/gpu/net), journal_query, port_list/check/owner, diagnose host:port + service:.
+- Docker: ps/logs/inspect/start/stop/restart/rm/exec (--privileged blocked), profile-gated.
+- Packages: search/info on apt/dnf/pacman/brew/flatpak/snap; install/remove/update on apt/dnf/pacman/brew, developer/full only.
+- Network detail: dns_lookup, interface_list, connection_list.
+- Snapshots: snapshot_create/list/restore + file_version/file_restore, 50 slots, 200MB cap.
+- Resources: system://summary/snapshot/ports, policy://current, audit://recent, process://{pid}, terminal://{session}, job://{job_id}.
+- Approval policy carried over: only destructive tools prompt; rm-via-shell caveat documented.
+- Verified live on Pop!_OS: 20-core i7, /proc ports, docker, apt, journal, diagnose layers.
 
 ## 0.3.0 - 2026-09-07
 

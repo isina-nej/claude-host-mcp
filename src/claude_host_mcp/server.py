@@ -19,10 +19,23 @@ from typing import Any
 from mcp.server import MCPServer
 from mcp.types import ToolAnnotations
 
+from . import policy as _policy
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=os.environ.get("HOST_MCP_LOG_LEVEL", "WARNING"))
 
 mcp = MCPServer("Host System")
+
+
+def _gate(tool: str, family: str) -> dict[str, Any] | None:
+    """Profile + rate gate. Returns error dict when blocked, None when allowed."""
+    allowed, reason = _policy.profile_allows(tool)
+    if not allowed:
+        return {"ok": False, "error": reason}
+    passed, reason = _policy.check_rate(family)
+    if not passed:
+        return {"ok": False, "error": reason}
+    return None
 
 SYSTEM = platform.system()  # Linux, Darwin, Windows, ...
 IS_WINDOWS = os.name == "nt" or SYSTEM == "Windows"
@@ -264,6 +277,8 @@ def run_command(command: str, cwd: str = "", timeout_seconds: int = 60) -> dict[
     Note: deletion via shell (rm / Remove-Item) is NOT blocked and does NOT prompt;
     use file_delete for guarded deletes that request approval.
     """
+    if (blocked := _gate("run_command", "shell")) is not None:
+        return blocked
     _check_shell_command(command)
     workdir = pathlib.Path(cwd).expanduser().resolve() if cwd else HOME
     if not workdir.is_dir():
@@ -338,16 +353,22 @@ def write_file(path: str, content: str, overwrite: bool = False) -> dict[str, An
     Default writable root is the user's home directory.
     Configure HOST_MCP_WRITE_ROOTS to change it.
     """
-    target = pathlib.Path(path).expanduser().resolve()
-    if not _is_under(target, WRITE_ROOTS):
-        return {"ok": False, "error": f"Path is outside configured writable roots: {target}"}
+    if (blocked := _gate("write_file", "files")) is not None:
+        return blocked
+    target, err = _policy.resolve_under(path, WRITE_ROOTS)
+    if err:
+        return {"ok": False, "error": err}
+    assert target is not None
     if target.exists() and not overwrite:
         return {"ok": False, "error": "File exists; set overwrite=true to replace it."}
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content)
+        _policy.audit("write_file", {"path": str(target), "chars": len(content),
+                                     "overwrite": overwrite}, True)
         return {"ok": True, "path": str(target), "characters": len(content)}
     except Exception as exc:
+        _policy.audit("write_file", {"path": path, "error": str(exc)}, False)
         return {"ok": False, "error": str(exc)}
 
 
@@ -510,12 +531,15 @@ def file_copy(source: str, dest: str, overwrite: bool = False) -> dict[str, Any]
 )
 def file_move(source: str, dest: str, overwrite: bool = False) -> dict[str, Any]:
     """Move or rename a file or directory inside writable roots."""
-    src = pathlib.Path(source).expanduser().resolve()
-    dst = pathlib.Path(dest).expanduser().resolve()
-    if not _is_under(src, WRITE_ROOTS):
-        return {"ok": False, "error": f"Source is outside configured writable roots: {src}"}
-    if not _is_under(dst, WRITE_ROOTS):
-        return {"ok": False, "error": f"Destination is outside configured writable roots: {dst}"}
+    if (blocked := _gate("file_move", "files")) is not None:
+        return blocked
+    src, err = _policy.resolve_under(source, WRITE_ROOTS)
+    if err:
+        return {"ok": False, "error": f"Source: {err}"}
+    dst, err = _policy.resolve_under(dest, WRITE_ROOTS)
+    if err:
+        return {"ok": False, "error": f"Destination: {err}"}
+    assert src is not None and dst is not None
     if not src.exists():
         return {"ok": False, "error": f"Source does not exist: {src}"}
     if dst.exists() and not overwrite:
@@ -523,8 +547,10 @@ def file_move(source: str, dest: str, overwrite: bool = False) -> dict[str, Any]
     try:
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(src), str(dst))
+        _policy.audit("file_move", {"source": str(src), "dest": str(dst)}, True)
         return {"ok": True, "source": str(src), "dest": str(dst)}
     except Exception as exc:
+        _policy.audit("file_move", {"source": source, "dest": dest, "error": str(exc)}, False)
         return {"ok": False, "error": str(exc)}
 
 
@@ -539,9 +565,12 @@ def file_move(source: str, dest: str, overwrite: bool = False) -> dict[str, Any]
 )
 def file_delete(path: str, recursive: bool = False) -> dict[str, Any]:
     """Delete a file, or a directory when recursive=true. Never deletes a configured root itself."""
-    target = pathlib.Path(path).expanduser().resolve()
-    if not _is_under(target, WRITE_ROOTS):
-        return {"ok": False, "error": f"Path is outside configured writable roots: {target}"}
+    if (blocked := _gate("file_delete", "files")) is not None:
+        return blocked
+    target, err = _policy.resolve_under(path, WRITE_ROOTS)
+    if err:
+        return {"ok": False, "error": err}
+    assert target is not None
     if target == HOME or target in WRITE_ROOTS:
         return {"ok": False, "error": "Refusing to delete a configured root directory."}
     if not target.exists() and not target.is_symlink():
@@ -553,8 +582,10 @@ def file_delete(path: str, recursive: bool = False) -> dict[str, Any]:
             shutil.rmtree(target)
         else:
             target.unlink()
+        _policy.audit("file_delete", {"path": str(target), "recursive": recursive}, True)
         return {"ok": True, "deleted": str(target)}
     except Exception as exc:
+        _policy.audit("file_delete", {"path": path, "error": str(exc)}, False)
         return {"ok": False, "error": str(exc)}
 
 
@@ -600,6 +631,8 @@ def process_list(filter: str = "", limit: int = 30) -> str:
 )
 def process_kill(pid: int, signal_name: str = "TERM") -> dict[str, Any]:
     """Send a signal to a host process. PID 1 and the MCP server itself are protected."""
+    if (blocked := _gate("process_kill", "process")) is not None:
+        return blocked
     name = signal_name.upper()
     if name not in SIGNALS:
         return {"ok": False, "error": f"Unknown signal {signal_name!r}; use one of {sorted(SIGNALS)}."}
@@ -613,12 +646,15 @@ def process_kill(pid: int, signal_name: str = "TERM") -> dict[str, Any]:
         return {"ok": False, "error": "Refusing to kill the MCP server itself."}
     try:
         os.kill(pid, SIGNALS[name])
+        _policy.audit("process_kill", {"pid": pid, "signal": name}, True)
         return {"ok": True, "pid": pid, "signal": name}
     except ProcessLookupError:
         return {"ok": False, "error": f"No such process: {pid}"}
     except PermissionError:
+        _policy.audit("process_kill", {"pid": pid, "signal": name, "error": "denied"}, False)
         return {"ok": False, "error": f"Permission denied for PID {pid}."}
     except Exception as exc:
+        _policy.audit("process_kill", {"pid": pid, "error": str(exc)}, False)
         return {"ok": False, "error": str(exc)}
 
 
@@ -793,6 +829,8 @@ def git_branch(path: str) -> str:
 )
 def git_commit(path: str, message: str) -> dict[str, Any]:
     """Stage all changes and commit in a repository inside writable roots. Never pushes."""
+    if (blocked := _gate("git_commit", "git")) is not None:
+        return blocked
     repo = pathlib.Path(path).expanduser().resolve()
     if not _is_under(repo, WRITE_ROOTS):
         return {"ok": False, "error": f"Path is outside configured writable roots: {repo}"}
@@ -811,9 +849,12 @@ def git_commit(path: str, message: str) -> dict[str, Any]:
             return {"ok": False, "error": add.stderr.strip() or "git add failed"}
         commit = _run(["git", "-C", str(repo), "commit", "-m", message], timeout=30)
         if commit.returncode != 0:
+            _policy.audit("git_commit", {"repo": str(repo), "error": "commit failed"}, False)
             return {"ok": False, "error": (commit.stdout + commit.stderr).strip() or "git commit failed"}
+        _policy.audit("git_commit", {"repo": str(repo), "message": message[:200]}, True)
         return {"ok": True, "repo": str(repo), "output": _trim(commit.stdout.strip())}
     except Exception as exc:
+        _policy.audit("git_commit", {"repo": str(repo), "error": str(exc)}, False)
         return {"ok": False, "error": str(exc)}
 
 
@@ -832,7 +873,7 @@ def http_fetch(url: str, max_chars: int = 20000, timeout_seconds: int = 20) -> d
     timeout = max(1, min(int(timeout_seconds), 60))
     byte_cap = min(MAX_DOWNLOAD, 5_000_000)
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "claude-host-mcp/0.3"})
+        req = urllib.request.Request(url, headers={"User-Agent": "claude-host-mcp/0.4"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read(byte_cap + 1)
             truncated = len(raw) > byte_cap
@@ -901,7 +942,7 @@ def download_file(url: str, dest: str, overwrite: bool = False, timeout_seconds:
     timeout = max(1, min(int(timeout_seconds), MAX_TIMEOUT))
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        req = urllib.request.Request(url, headers={"User-Agent": "claude-host-mcp/0.3"})
+        req = urllib.request.Request(url, headers={"User-Agent": "claude-host-mcp/0.4"})
         total = 0
         with urllib.request.urlopen(req, timeout=timeout) as resp, open(target, "wb") as fh:
             while True:
@@ -917,6 +958,25 @@ def download_file(url: str, dest: str, overwrite: bool = False, timeout_seconds:
         return {"ok": True, "path": str(target), "bytes": total, "url": url}
     except Exception as exc:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+from . import files as _files
+from . import gitx as _gitx
+from . import jobs as _jobs
+from . import ops as _ops
+from . import policy as _policy_mod
+from . import resources as _resources
+from . import sessions as _sessions
+from . import snapshots as _snapshots
+
+_sessions.register(mcp)
+_jobs.register(mcp)
+_policy_mod.register(mcp)
+_files.register(mcp)
+_gitx.register(mcp)
+_ops.register(mcp)
+_snapshots.register(mcp)
+_resources.register(mcp)
 
 
 def main() -> None:
