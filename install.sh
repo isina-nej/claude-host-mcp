@@ -18,7 +18,7 @@ PY
 mkdir -p "$INSTALL_DIR"
 
 # Copy the source tree so the installation is independent of the clone location.
-cp -a "$PROJECT_DIR/pyproject.toml" "$INSTALL_DIR/"
+cp -a "$PROJECT_DIR/pyproject.toml" "$PROJECT_DIR/README.md" "$INSTALL_DIR/"
 rm -rf "$INSTALL_DIR/src"
 cp -a "$PROJECT_DIR/src" "$INSTALL_DIR/"
 
