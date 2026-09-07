@@ -71,11 +71,12 @@
 
 ## نصب
 
-لینوکس:
+لینوکس (یا WSL):
 
 ```bash
 git clone https://github.com/isina-nej/claude-host-mcp.git
 cd claude-host-mcp
+chmod +x install.sh install-mac.sh doctor.sh uninstall.sh
 ./install.sh
 ```
 
@@ -84,14 +85,16 @@ cd claude-host-mcp
 ```bash
 git clone https://github.com/isina-nej/claude-host-mcp.git
 cd claude-host-mcp
+chmod +x install.sh install-mac.sh doctor.sh uninstall.sh
 ./install-mac.sh
 ```
 
-ویندوز (PowerShell):
+ویندوز (PowerShell — از اسکریپت‌های `.ps1` استفاده کنید، نه `.sh`):
 
 ```powershell
 git clone https://github.com/isina-nej/claude-host-mcp.git
 cd claude-host-mcp
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\install.ps1
 ```
 
@@ -101,7 +104,7 @@ cd claude-host-mcp
 2. ساخت venv ایزوله و نصب `mcp>=2,<3`
 3. پیدا کردن کانفیگ Claude — مک `~/Library/Application Support/Claude/`، ویندوز `%APPDATA%\Claude\`، لینوکس `~/.config/Claude-3p/` یا `~/.config/Claude/`
 4. ثبت سرور `host-system` (اول از کانفیگ بکاپ می‌گیرد)
-5. فعال‌سازی فلگ‌های local-dev در پروفایل فعال config-library نسخه 3P، اگر وجود داشت (مسیر لینوکس)
+5. فعال‌سازی فلگ‌های local-dev در پروفایل فعال config-library نسخه 3P، اگر وجود داشت (فقط لینوکس 3P؛ در بقیه no-op است)
 
 بعد Claude Desktop را کامل ببندید و دوباره باز کنید و یک تسک/سشن جدید بسازید.
 
@@ -174,7 +177,12 @@ HOST_MCP_INSTALL_DIR="$HOME/custom-dir" ./install.sh
 
 سیستم‌عامل، پایتون، entry point داخل venv، ایمپورت MCP SDK و ثبت‌شدن کانفیگ را چک می‌کند. لاگ‌های MCP: دایرکتوری config/log مربوط به Claude؛ در نصب 3P روی لینوکس معمولاً `~/.config/Claude-3p/logs/`.
 
-رفع رایج: ریستارت کامل Claude Desktop (نه فقط بستن پنجره)، سشن جدید بعد از نصب، اگر umask سخت‌گیرانه است بعد از `git clone` دستور `chmod +x install.sh doctor.sh uninstall.sh`.
+رفع رایج:
+
+- ریستارت کامل Claude Desktop (نه فقط بستن پنجره)، بعد سشن جدید.
+- اگر اسکریپت‌ها بعد از `git clone` اجرا نشدند: `chmod +x install.sh install-mac.sh doctor.sh uninstall.sh`.
+- در ویندوز اگر PowerShell اسکریپت را بلاک کرد: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` بعد `.\install.ps1`.
+- اگر کانفیگ اشتباهی ویرایش شد، با `CLAUDE_DESKTOP_CONFIG` (یونیکس) یا `-ClaudeConfig` (ویندوز) مسیر درست را بدهید و دوباره نصب کنید.
 
 ## حذف نصب
 

@@ -71,11 +71,12 @@ Claude Desktop Cowork/Code tasks run in a restricted sandbox. This server bridge
 
 ## Install
 
-Linux:
+Linux (or WSL):
 
 ```bash
 git clone https://github.com/isina-nej/claude-host-mcp.git
 cd claude-host-mcp
+chmod +x install.sh install-mac.sh doctor.sh uninstall.sh
 ./install.sh
 ```
 
@@ -84,14 +85,16 @@ macOS:
 ```bash
 git clone https://github.com/isina-nej/claude-host-mcp.git
 cd claude-host-mcp
+chmod +x install.sh install-mac.sh doctor.sh uninstall.sh
 ./install-mac.sh
 ```
 
-Windows (PowerShell):
+Windows (PowerShell — use the `.ps1` scripts, not the `.sh` ones):
 
 ```powershell
 git clone https://github.com/isina-nej/claude-host-mcp.git
 cd claude-host-mcp
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\install.ps1
 ```
 
@@ -101,7 +104,7 @@ Installer does:
 2. Creates isolated venv, installs `mcp>=2,<3`
 3. Detects Claude config — macOS `~/Library/Application Support/Claude/`, Windows `%APPDATA%\Claude\`, Linux `~/.config/Claude-3p/` or `~/.config/Claude/`
 4. Registers `host-system` server (backs up config first)
-5. Enables 3P local-dev MCP flags in active config-library profile, if present (Linux `install.sh` path)
+5. Enables 3P local-dev MCP flags in active config-library profile, if present (Linux 3P only; no-op elsewhere)
 
 Then fully restart Claude Desktop, open a new task/session.
 
@@ -174,7 +177,12 @@ Additional limits: `process_kill` refuses PID 1 and self; `file_delete` refuses 
 
 Checks OS, Python, venv entry point, MCP SDK import, registered config. MCP logs: Claude config/log dir; 3P Linux often `~/.config/Claude-3p/logs/`.
 
-Common fixes: full Claude Desktop restart (not just window reload), new session after install, `chmod +x install.sh doctor.sh uninstall.sh` after `git clone` on strict umasks.
+Common fixes:
+
+- Full Claude Desktop restart (not just window reload), then a new session.
+- If scripts won't run after `git clone`, re-apply `chmod +x install.sh install-mac.sh doctor.sh uninstall.sh`.
+- On Windows, if PowerShell blocks scripts: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`, then `.\install.ps1`.
+- If the wrong config got edited, re-run with `CLAUDE_DESKTOP_CONFIG` (Unix) or `-ClaudeConfig` (Windows) pointing at the right file.
 
 ## Uninstall
 
