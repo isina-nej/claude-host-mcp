@@ -963,11 +963,13 @@ def download_file(url: str, dest: str, overwrite: bool = False, timeout_seconds:
 from . import files as _files
 from . import gitx as _gitx
 from . import jobs as _jobs
+from . import mind as _mind
 from . import ops as _ops
 from . import policy as _policy_mod
 from . import resources as _resources
 from . import sessions as _sessions
 from . import snapshots as _snapshots
+from . import webdata as _webdata
 
 _sessions.register(mcp)
 _jobs.register(mcp)
@@ -977,6 +979,8 @@ _gitx.register(mcp)
 _ops.register(mcp)
 _snapshots.register(mcp)
 _resources.register(mcp)
+_mind.register(mcp)
+_webdata.register(mcp)
 
 
 def main() -> None:

@@ -142,7 +142,9 @@ DESTRUCTIVE = frozenset({
     "git_stash_pop", "git_stash_drop", "snapshot_restore",
     "docker_stop", "docker_restart", "docker_rm", "docker_exec",
     "package_install", "package_remove", "package_update",
-    "service_restart",
+    "service_restart", "memory_forget", "think_clear",
+    "github_issue_create", "github_pr_create", "db_write",
+    "browser_shot", "drive_get", "slack_send",
 })
 
 SAFE_READONLY = frozenset({
@@ -152,6 +154,9 @@ SAFE_READONLY = frozenset({
     "git_branch", "http_fetch", "network_check", "terminal_read",
     "terminal_wait", "terminal_list", "job_status", "job_output",
     "job_wait", "job_list", "audit_log", "audit_search",
+    "time_now", "time_convert", "time_zones", "memory_recall",
+    "think_list", "fetch_text", "web_search", "browser_fetch",
+    "github_repo", "db_tables", "maps_geocode", "maps_directions",
 })
 
 

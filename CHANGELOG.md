@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 - 2026-09-07
+
+- All-in-one suites: 114 tools (was 88), same 8 resources. No new pip dependencies.
+- Mind (10): time_now/convert/zones via zoneinfo; memory_store/link/recall/forget via JSON graph (HOST_MCP_MEMORY_FILE); think/think_list/think_clear chain.
+- Web data (4): fetch_text (boilerplate strip, <=3 redirects); web_search (duckduckgo keyless / brave keyed, default off); browser_fetch/shot via headless Chrome (opt-in HOST_MCP_BROWSER=chrome).
+- Integrations (12): github_repo/issue/pr (GITHUB_TOKEN, create prompts); db_query/tables (sqlite stdlib, postgres psql, SELECT-first, writes need confirm+full); redis_get (REDIS_URL); maps_geocode/directions (google key else nominatim/straight-line); drive_list/get via rclone (RCLONE_REMOTE); slack_list/send (SLACK_BOT_TOKEN, send prompts).
+- Secrets never logged; unconfigured integrations return setup errors, never crash.
+- Tested stdio E2E on Pop!_OS: time/memory/think/fetch/maps green; gated suites return clean setup errors.
+
 ## 0.4.1 - 2026-09-07
 
 - Fix wrapper/impl name shadowing in ops, policy, snapshots (RecursionError on system_snapshot, diagnose, audit_search, file_version, file_restore).

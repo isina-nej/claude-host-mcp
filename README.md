@@ -8,13 +8,13 @@ English | [فارسی](README.fa.md)
 
 ## Why
 
-Claude Desktop Cowork/Code tasks run in a restricted sandbox. This server bridges out: Claude calls **88 typed tools + 8 resources (5 static + 3 templates)** on the host — shell, persistent terminals, background jobs, files, search, git, system monitoring, journal, ports, Docker, packages, network, snapshots — with scoped file roots, a policy engine, audit trail, and dangerous-command guardrails.
+Claude Desktop Cowork/Code tasks run in a restricted sandbox. This server bridges out: Claude calls **114 typed tools + 8 resources (5 static + 3 templates)** on the host — shell, persistent terminals, background jobs, files, search, git, system monitoring, journal, ports, Docker, packages, network, snapshots, time, memory, thinking, web fetch, web search, browser, GitHub, databases, maps, drive, Slack — with scoped file roots, a policy engine, audit trail, and dangerous-command guardrails.
 
 Design goal: everything a Linux developer/admin does in a terminal, an agent can do — semantically, observably, cancellably, auditably, and reversibly.
 
 ## Tools
 
-88 tools in nine groups (verified live via stdio handshake). Only destructive tools prompt (see [Approval policy](#approval-policy)).
+114 tools in twelve groups (verified live via stdio handshake). Only destructive tools prompt (see [Approval policy](#approval-policy)).
 
 ### Core
 
@@ -144,6 +144,51 @@ Native manager auto-detected (apt/dnf/pacman/zypper/apk/brew/flatpak/snap). Sear
 | `package_install` / `package_remove` | Install/remove. Prompt. |
 | `package_update` | Refresh index. Prompt. |
 
+### Mind: time, memory, thinking
+
+No new dependencies. Mirrors the official time/memory/sequential-thinking servers with stdlib-only internals.
+
+| Tool | Description |
+|---|---|
+| `time_now` | Current time in IANA timezone (default local). |
+| `time_convert` | ISO datetime between timezones. |
+| `time_zones` | List IANA zones, optional filter. |
+| `memory_store` | Store observation on entity (persistent JSON graph). |
+| `memory_link` | Typed relation between two entities. |
+| `memory_recall` | Substring recall over entities/observations/relations. |
+| `memory_forget` | Delete observation or whole entity. Destructive — prompts. |
+| `think` | Record one reasoning step in a chain. |
+| `think_list` | Return the thought chain. Read-only. |
+| `think_clear` | Clear the chain. Destructive — prompts. |
+
+### Web data: fetch, search, browser
+
+| Tool | Description |
+|---|---|
+| `fetch_text` | Fetch URL → LLM-ready text (boilerplate stripped, ≤3 redirects). |
+| `web_search` | Keyless duckduckgo or Brave with key. Disabled by default (`HOST_MCP_WEB_SEARCH`). |
+| `browser_fetch` | Headless-Chrome DOM text. Opt-in (`HOST_MCP_BROWSER=chrome`). |
+| `browser_shot` | Page screenshot PNG into writable roots. Opt-in; prompts. |
+
+### Integrations: GitHub, databases, maps, drive, Slack
+
+All credential-gated: without keys they return setup errors, never crash. Secrets never reach the audit log.
+
+| Tool | Description |
+|---|---|
+| `github_repo` | Repo metadata (needs `GITHUB_TOKEN`). |
+| `github_issue` | List/get/create issues. Create prompts. |
+| `github_pr` | List/get/create PRs. Create prompts. |
+| `db_query` | SELECT-first SQL: sqlite via stdlib, postgres via `psql`. Writes need `confirm=true` + full profile. |
+| `db_tables` | List tables for a DSN. |
+| `redis_get` | GET a key via `redis-cli` (needs `REDIS_URL`). |
+| `maps_geocode` | Forward geocode (Google with key, else nominatim). |
+| `maps_directions` | Routing (Google with key, else straight-line km). |
+| `drive_list` | List `rclone` remote path (needs `RCLONE_REMOTE`). |
+| `drive_get` | Download remote file into writable roots. Prompts. |
+| `slack_list` | List channels (needs `SLACK_BOT_TOKEN`). |
+| `slack_send` | Post a message. Prompts. |
+
 ### Snapshots and audit
 
 | Tool | Description |
@@ -173,7 +218,7 @@ Live context without tool calls:
 
 ## Approval policy
 
-Only destructive tools prompt: `file_delete`, `file_move`, `terminal_close`, `terminal_signal`, `process_kill`, `job_cancel`, `git_commit`, `git_reset`, `git_revert`, `git_merge`, `git_rebase`, `git_checkout`, `git_clean` (exec), `git_tag` (create/delete), `git_stash` (pop/drop), `git_worktree_*` (create/remove), `snapshot_restore`, `file_restore`, `docker_*` (mutations), `package_*` (mutations). Everything else — shell, reads, search, monitoring, journal, ports, diagnose — runs without approval friction.
+Only destructive tools prompt: `file_delete`, `file_move`, `terminal_close`, `terminal_signal`, `process_kill`, `job_cancel`, `git_commit`, `git_reset`, `git_revert`, `git_merge`, `git_rebase`, `git_checkout`, `git_clean` (exec), `git_tag` (create/delete), `git_stash` (pop/drop), `git_worktree_*` (create/remove), `snapshot_restore`, `file_restore`, `docker_*` (mutations), `package_*` (mutations), `memory_forget`, `think_clear`, `github_issue`/`github_pr` (create), `db_query` (writes), `browser_shot`, `drive_get`, `slack_send`. Everything else — shell, reads, search, monitoring, journal, ports, diagnose — runs without approval friction.
 
 > Caveat: deletion via shell (`rm` / `Remove-Item` inside `run_command`) is NOT blocked and does NOT prompt. Use `file_delete` for guarded deletes that request approval.
 
@@ -267,6 +312,14 @@ Set under `host-system` → `env` in `claude_desktop_config.json`. Restart Claud
 | `HOST_MCP_SNAPSHOT_DIR` | `~/.local/share/claude-host-mcp/snapshots` | Snapshot slot directory. |
 | `HOST_MCP_RATE_LIMIT` | `60/60` | `N/seconds` per tool family. |
 | `HOST_MCP_LOG_LEVEL` | `WARNING` | Python log level. |
+| `HOST_MCP_MEMORY_FILE` | `~/.local/share/claude-host-mcp/memory.json` | Knowledge-graph file. |
+| `HOST_MCP_WEB_SEARCH` | `off` | `duckduckgo` enables keyless search; `BRAVE_API_KEY` enables Brave. |
+| `HOST_MCP_BROWSER` | `off` | `chrome` enables headless-Chrome tools. |
+| `GITHUB_TOKEN` / `GH_TOKEN` | _(unset)_ | Enables `github_*`. |
+| `POSTGRES_DSN` / `REDIS_URL` | _(unset)_ | Default DSNs for `db_*` / `redis_get`. |
+| `GOOGLE_MAPS_API_KEY` | _(unset)_ | Google backend for `maps_*`; else nominatim/fallback. |
+| `RCLONE_REMOTE` | _(unset)_ | e.g. `gdrive:` enables `drive_*`. |
+| `SLACK_BOT_TOKEN` | _(unset)_ | `xoxb-` token enables `slack_*`. |
 
 Example:
 
@@ -321,7 +374,7 @@ Removes `host-system` entry (config backed up first) and installed runtime. Rest
 
 ## Development
 
-Layout: `src/claude_host_mcp/` (`server.py`, `sessions.py`, `jobs.py`, `policy.py`, `files.py`, `gitx.py`, `ops.py`, `snapshots.py`, `resources.py`), `pyproject.toml` (hatchling), `install.sh`, `install-mac.sh`, `install.ps1`, `doctor.sh`, `doctor.ps1`, `uninstall.sh`, `uninstall.ps1`.
+Layout: `src/claude_host_mcp/` (`server.py`, `sessions.py`, `jobs.py`, `policy.py`, `files.py`, `gitx.py`, `ops.py`, `snapshots.py`, `resources.py`, `mind.py`, `webdata.py`), `pyproject.toml` (hatchling), `install.sh`, `install-mac.sh`, `install.ps1`, `doctor.sh`, `doctor.ps1`, `uninstall.sh`, `uninstall.ps1`.
 
 ```python
 from mcp.server import MCPServer
@@ -342,7 +395,7 @@ PYTHONPATH=src python -m claude_host_mcp.server  # speak JSON-RPC on stdin; see 
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md). Current: `0.4.1`.
+See [CHANGELOG.md](CHANGELOG.md). Current: `0.5.0`.
 
 ## License
 

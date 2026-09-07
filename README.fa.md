@@ -8,13 +8,13 @@
 
 ## چرا این پروژه؟
 
-تسک‌های Cowork/Code در Claude Desktop داخل سندباکس محدود اجرا می‌شوند. این سرور یک پل به بیرون است: Claude با **۸۸ ابزار تایپ‌شده و ۸ ریسورس (۵ ثابت و ۳ تمپلیت)** روی میزبان واقعی کار می‌کند — شل، ترمینال ماندگار، جاب پس‌زمینه، فایل، جست‌وجو، گیت، مانیتورینگ، ژورنال، پورت، داکر، پکیج، شبکه، اسنپشات — همه با ریشه‌های محدود، موتور پالیسی، لاگ حسابرسی و گاردریل دستورهای خطرناک.
+تسک‌های Cowork/Code در Claude Desktop داخل سندباکس محدود اجرا می‌شوند. این سرور یک پل به بیرون است: Claude با **۱۱۴ ابزار تایپ‌شده و ۸ ریسورس (۵ ثابت و ۳ تمپلیت)** روی میزبان واقعی کار می‌کند — شل، ترمینال ماندگار، جاب پس‌زمینه، فایل، جست‌وجو، گیت، مانیتورینگ، ژورنال، پورت، داکر، پکیج، شبکه، اسنپشات، زمان، حافظه، تفکر، وب، مرورگر، گیت‌هاب، دیتابیس، نقشه، درایو، اسلک — همه با ریشه‌های محدود، موتور پالیسی، لاگ حسابرسی و گاردریل دستورهای خطرناک.
 
 هدف طراحی: هر کاری که یک توسعه‌دهنده/ادمین لینوکس در ترمینال می‌کند، ایجنت هم بتواند بکند — معنایی، قابل مشاهده، قابل لغو، قابل حسابرسی و قابل برگشت.
 
 ## ابزارها
 
-۸۸ ابزار در نه گروه (تأییدشده زنده با handshake استاندارد). فقط ابزارهای مخرب تأیید می‌خواهند (بخش [سیاست تأیید](#سیاست-تأیید)).
+۱۱۴ ابزار در دوازده گروه (تأییدشده زنده با handshake استاندارد). فقط ابزارهای مخرب تأیید می‌خواهند (بخش [سیاست تأیید](#سیاست-تأیید)).
 
 ### هسته
 
@@ -144,6 +144,51 @@
 | `package_install` و `package_remove` | نصب/حذف. تأیید می‌خواهد. |
 | `package_update` | رفرش ایندکس. تأیید می‌خواهد. |
 
+### ذهن: زمان، حافظه، تفکر
+
+بدون وابستگی جدید. معادل رسمی time و memory و sequential-thinking با ابزارهای استاندارد.
+
+| ابزار | توضیح |
+|---|---|
+| `time_now` | زمان جاری در timezone از نوع IANA (پیش‌فرض local). |
+| `time_convert` | تبدیل datetime از نوع ISO بین timezoneها. |
+| `time_zones` | لیست zoneهای IANA با فیلتر اختیاری. |
+| `memory_store` | ذخیره یک observation روی entity (گراف دانش ماندگار). |
+| `memory_link` | رابطه تایپ‌دار بین دو entity. |
+| `memory_recall` | یادآوری substring روی entityها و observationها و رابطه‌ها. |
+| `memory_forget` | حذف observation یا کل entity. مخرب — تأیید می‌خواهد. |
+| `think` | ثبت یک گام استدلال در زنجیره. |
+| `think_list` | برگرداندن زنجیره تفکر. فقط خواندنی. |
+| `think_clear` | پاک کردن زنجیره. مخرب — تأیید می‌خواهد. |
+
+### داده وب: fetch و جست‌وجو و مرورگر
+
+| ابزار | توضیح |
+|---|---|
+| `fetch_text` | گرفتن URL و تبدیل به متن آماده LLM (حذف boilerplate، حداکثر ۳ ریدایرکت). |
+| `web_search` | جست‌وجوی duckduckgo بدون کلید یا Brave با کلید. پیش‌فرض خاموش (`HOST_MCP_WEB_SEARCH`). |
+| `browser_fetch` | متن DOM با کروم headless. opt-in (`HOST_MCP_BROWSER=chrome`). |
+| `browser_shot` | اسکرین‌شات PNG در ریشه نوشتنی. opt-in؛ تأیید می‌خواهد. |
+
+### یکپارچه‌سازی: گیت‌هاب، دیتابیس، نقشه، درایو، اسلک
+
+همه با کلید فعال می‌شوند؛ بدون کلید خطای راهنما می‌دهند و هرگز کرش نمی‌کنند. secret هرگز در audit لاگ نمی‌شود.
+
+| ابزار | توضیح |
+|---|---|
+| `github_repo` | متادیتای ریپو (نیازمند `GITHUB_TOKEN`). |
+| `github_issue` | لیست/گرفتن/ساخت issue. ساخت تأیید می‌خواهد. |
+| `github_pr` | لیست/گرفتن/ساخت PR. ساخت تأیید می‌خواهد. |
+| `db_query` | کوئری با اولویت خواندن: sqlite با stdlib و postgres با `psql`. نوشتن نیازمند `confirm=true` و پروفایل full. |
+| `db_tables` | لیست جدول‌های یک DSN. |
+| `redis_get` | گرفتن کلید با `redis-cli` (نیازمند `REDIS_URL`). |
+| `maps_geocode` | ژئوکد مستقیم (گوگل با کلید، وگرنه nominatim). |
+| `maps_directions` | مسیریابی (گوگل با کلید، وگرنه فاصله خط مستقیم). |
+| `drive_list` | لیست مسیر ریموت `rclone` (نیازمند `RCLONE_REMOTE`). |
+| `drive_get` | دانلود فایل ریموت در ریشه نوشتنی. تأیید می‌خواهد. |
+| `slack_list` | لیست کانال‌ها (نیازمند `SLACK_BOT_TOKEN`). |
+| `slack_send` | ارسال پیام. تأیید می‌خواهد. |
+
 ### اسنپشات و حسابرسی
 
 | ابزار | توضیح |
@@ -173,7 +218,7 @@
 
 ## سیاست تأیید
 
-فقط ابزارهای مخرب تأیید می‌خواهند: `file_delete` و `file_move` و `terminal_close` و `terminal_signal` و `process_kill` و `job_cancel` و `git_commit` و `git_reset` و `git_revert` و `git_merge` و `git_rebase` و `git_checkout` و `git_clean` (اجرا) و `git_tag` (ساخت/حذف) و `git_stash` (pop/drop) و `git_worktree_*` (ساخت/حذف) و `snapshot_restore` و `file_restore` و تغییرهای `docker_*` و `package_*`. بقیه — شل، خواندن، جست‌وجو، مانیتورینگ، ژورنال، پورت، diagnose — بدون اصطکاک تأیید اجرا می‌شوند.
+فقط ابزارهای مخرب تأیید می‌خواهند: `file_delete` و `file_move` و `terminal_close` و `terminal_signal` و `process_kill` و `job_cancel` و `git_commit` و `git_reset` و `git_revert` و `git_merge` و `git_rebase` و `git_checkout` و `git_clean` (اجرا) و `git_tag` (ساخت/حذف) و `git_stash` (pop/drop) و `git_worktree_*` (ساخت/حذف) و `snapshot_restore` و `file_restore` و تغییرهای `docker_*` و `package_*` و `memory_forget` و `think_clear` و ساخت `github_issue` و `github_pr` و نوشتن `db_query` و `browser_shot` و `drive_get` و `slack_send`. بقیه — شل، خواندن، جست‌وجو، مانیتورینگ، ژورنال، پورت، diagnose — بدون اصطکاک تأیید اجرا می‌شوند.
 
 > نکته: حذف از طریق شل (`rm` یا `Remove-Item` داخل `run_command`) بلاک نیست و تأیید نمی‌خواهد. برای حذف محافظت‌شده از `file_delete` استفاده کنید.
 
@@ -267,6 +312,14 @@ HOST_MCP_INSTALL_DIR="$HOME/custom-dir" ./install.sh
 | `HOST_MCP_SNAPSHOT_DIR` | `~/.local/share/claude-host-mcp/snapshots` | دایرکتوری اسلات‌های اسنپشات. |
 | `HOST_MCP_RATE_LIMIT` | `60/60` | تعداد/ثانیه به‌ازای خانواده ابزار. |
 | `HOST_MCP_LOG_LEVEL` | `WARNING` | سطح لاگ پایتون. |
+| `HOST_MCP_MEMORY_FILE` | `~/.local/share/claude-host-mcp/memory.json` | فایل گراف دانش. |
+| `HOST_MCP_WEB_SEARCH` | `off` | مقدار `duckduckgo` جست‌وجوی بدون کلید؛ `BRAVE_API_KEY` یعنی Brave. |
+| `HOST_MCP_BROWSER` | `off` | مقدار `chrome` ابزارهای مرورگر headless را فعال می‌کند. |
+| `GITHUB_TOKEN` / `GH_TOKEN` | _(خالی)_ | فعال‌سازی `github_*`. |
+| `POSTGRES_DSN` / `REDIS_URL` | _(خالی)_ | DSN پیش‌فرض `db_*` و `redis_get`. |
+| `GOOGLE_MAPS_API_KEY` | _(خالی)_ | بک‌اند گوگل `maps_*`؛ وگرنه nominatim. |
+| `RCLONE_REMOTE` | _(خالی)_ | مثل `gdrive:` برای `drive_*`. |
+| `SLACK_BOT_TOKEN` | _(خالی)_ | توکن `xoxb-` برای `slack_*`. |
 
 مثال:
 
@@ -321,7 +374,7 @@ HOST_MCP_INSTALL_DIR="$HOME/custom-dir" ./install.sh
 
 ## توسعه
 
-ساختار: `src/claude_host_mcp/` (فایل‌های `server.py` و `sessions.py` و `jobs.py` و `policy.py` و `files.py` و `gitx.py` و `ops.py` و `snapshots.py` و `resources.py`) و `pyproject.toml` (hatchling) و `install.sh` و `install-mac.sh` و `install.ps1` و `doctor.sh` و `doctor.ps1` و `uninstall.sh` و `uninstall.ps1`.
+ساختار: `src/claude_host_mcp/` (فایل‌های `server.py` و `sessions.py` و `jobs.py` و `policy.py` و `files.py` و `gitx.py` و `ops.py` و `snapshots.py` و `resources.py` و `mind.py` و `webdata.py`) و `pyproject.toml` (hatchling) و `install.sh` و `install-mac.sh` و `install.ps1` و `doctor.sh` و `doctor.ps1` و `uninstall.sh` و `uninstall.ps1`.
 
 ```python
 from mcp.server import MCPServer
@@ -336,7 +389,7 @@ python3 -c "import sys; sys.path.insert(0,'src'); import claude_host_mcp.server;
 
 ## تغییرات
 
-[CHANGELOG.md](CHANGELOG.md) را ببینید. نسخه فعلی: `0.4.1`.
+[CHANGELOG.md](CHANGELOG.md) را ببینید. نسخه فعلی: `0.5.0`.
 
 ## لایسنس
 
