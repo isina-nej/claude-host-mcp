@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "claude-host-mcp"
+version = "0.2.0"
+description = "A portable local MCP server that gives Claude Desktop controlled access to the Linux host."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "Claude Host MCP contributors" }
+]
+dependencies = [
+  "mcp>=2.0,<3"
+]
+keywords = ["mcp", "claude", "claude-desktop", "linux", "automation"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+[project.scripts]
+claude-host-mcp = "claude_host_mcp.server:main"
+
+[project.optional-dependencies]
+dev = ["mcp[cli]>=2.0,<3"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/claude_host_mcp"]
