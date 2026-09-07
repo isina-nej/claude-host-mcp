@@ -7,8 +7,9 @@ python3 - <<'PY'
 import datetime, json, pathlib, shutil
 home = pathlib.Path.home()
 configs = [
-    home / '.config/Claude-3p/claude_desktop_config.json',
-    home / '.config/Claude/claude_desktop_config.json',
+    home / 'Library/Application Support/Claude/claude_desktop_config.json',  # macOS
+    home / '.config/Claude-3p/claude_desktop_config.json',  # Linux 3P
+    home / '.config/Claude/claude_desktop_config.json',  # Linux
 ]
 for cfg in configs:
     if not cfg.exists():

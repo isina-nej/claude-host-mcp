@@ -4,7 +4,11 @@ set -u
 INSTALL_DIR="${HOST_MCP_INSTALL_DIR:-$HOME/.local/share/claude-host-mcp}"
 
 echo '=== OS ==='
-grep -E '^(PRETTY_NAME|VERSION_ID)=' /etc/os-release 2>/dev/null || true
+if [ -f /etc/os-release ]; then
+  grep -E '^(PRETTY_NAME|VERSION_ID)=' /etc/os-release 2>/dev/null || true
+elif [ "$(uname)" = "Darwin" ]; then
+  sw_vers 2>/dev/null || true
+fi
 uname -m
 
 echo
@@ -29,9 +33,17 @@ fi
 echo
 echo '=== CLAUDE CONFIGS ==='
 python3 - <<'PY'
-import json, pathlib
+import json, pathlib, sys
 home = pathlib.Path.home()
-for p in [home/'.config/Claude-3p/claude_desktop_config.json', home/'.config/Claude/claude_desktop_config.json']:
+paths = [
+    home / 'Library/Application Support/Claude/claude_desktop_config.json',  # macOS
+    home / '.config/Claude-3p/claude_desktop_config.json',  # Linux 3P
+    home / '.config/Claude/claude_desktop_config.json',  # Linux
+]
+if sys.platform == 'win32':
+    appdata = pathlib.Path.home() / 'AppData/Roaming/Claude/claude_desktop_config.json'
+    paths.insert(0, appdata)
+for p in paths:
     if not p.exists():
         continue
     print(p)

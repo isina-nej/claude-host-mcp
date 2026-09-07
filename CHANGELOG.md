@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 - 2026-09-07
+
+- Cross-platform: Linux, macOS, Windows. Same 24 tools, OS-adaptive internals.
+- run_command: Bash on Linux/macOS, PowerShell on Windows.
+- system_summary: df/free (Linux), vm_stat/sysctl (macOS), Get-ComputerInfo/Get-PSDrive (Windows).
+- process_list: ps (Unix), tasklist (Windows). process_kill signal set adjusted per OS.
+- service_status: systemd --user (Linux), launchctl filter (macOS), sc query (Windows).
+- disk_usage: df/du (Unix), drive + walked dir size (Windows).
+- file_search avoids Unix find.exe clash on Windows; file_grep gains pure-Python fallback.
+- install.ps1 / uninstall.ps1 / doctor.ps1 for Windows; install-mac.sh wrapper; config auto-detect per OS.
+- Blocklist extended: Restart-Computer/Stop-Computer, diskpart/Format-Volume/Clear-Disk/Remove-Partition, drive-root Remove-Item.
+
 ## 0.2.0 - 2026-09-07
 
 - 24 tools: core 6 + files 6 + process 4 + git 5 + network 3.

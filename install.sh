@@ -42,6 +42,8 @@ if [ -z "$CONFIG_PATH" ]; then
 import json, pathlib
 home = pathlib.Path.home()
 candidates = [
+    # macOS standard location first, then Linux variants.
+    home / 'Library/Application Support/Claude/claude_desktop_config.json',
     home / '.config/Claude-3p/claude_desktop_config.json',
     home / '.config/Claude/claude_desktop_config.json',
 ]
@@ -56,7 +58,11 @@ for p in candidates:
 for p in candidates:
     if p.exists():
         print(p); raise SystemExit
-print(home / '.config/Claude/claude_desktop_config.json')
+import sys
+if sys.platform == 'darwin':
+    print(home / 'Library/Application Support/Claude/claude_desktop_config.json')
+else:
+    print(home / '.config/Claude/claude_desktop_config.json')
 PY
 )"
 fi

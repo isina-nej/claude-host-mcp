@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import getpass
 import logging
 import os
 import pathlib
@@ -21,12 +22,22 @@ from mcp.types import ToolAnnotations
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=os.environ.get("HOST_MCP_LOG_LEVEL", "WARNING"))
 
-mcp = MCPServer("Linux Host System")
+mcp = MCPServer("Host System")
+
+SYSTEM = platform.system()  # Linux, Darwin, Windows, ...
+IS_WINDOWS = os.name == "nt" or SYSTEM == "Windows"
+IS_MAC = SYSTEM == "Darwin"
 
 HOME = pathlib.Path.home().resolve()
 MAX_OUTPUT = int(os.environ.get("HOST_MCP_MAX_OUTPUT", "50000"))
 MAX_TIMEOUT = int(os.environ.get("HOST_MCP_MAX_TIMEOUT", "180"))
 MAX_DOWNLOAD = int(os.environ.get("HOST_MCP_MAX_DOWNLOAD", "20971520"))  # 20 MB
+
+
+def _default_read_roots() -> list[pathlib.Path]:
+    if IS_WINDOWS:
+        return [HOME]
+    return [HOME, pathlib.Path("/etc"), pathlib.Path("/var/log")]
 
 
 def _split_roots(value: str, defaults: list[pathlib.Path]) -> list[pathlib.Path]:
@@ -41,23 +52,18 @@ def _split_roots(value: str, defaults: list[pathlib.Path]) -> list[pathlib.Path]
     return roots
 
 
-READ_ROOTS = _split_roots(
-    os.environ.get("HOST_MCP_READ_ROOTS", ""),
-    [HOME, pathlib.Path("/etc"), pathlib.Path("/var/log")],
-)
-WRITE_ROOTS = _split_roots(
-    os.environ.get("HOST_MCP_WRITE_ROOTS", ""),
-    [HOME],
-)
+READ_ROOTS = _split_roots(os.environ.get("HOST_MCP_READ_ROOTS", ""), _default_read_roots())
+WRITE_ROOTS = _split_roots(os.environ.get("HOST_MCP_WRITE_ROOTS", ""), [HOME])
 
 # This is a guardrail, not a security boundary. Raw shell access is powerful.
 BLOCKED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(^|[;&|]\s*)(sudo|su|pkexec)\b", re.I), "privilege escalation is disabled"),
-    (re.compile(r"\b(shutdown|reboot|poweroff|halt)\b", re.I), "power control is disabled"),
-    (re.compile(r"\b(mkfs(?:\.\w+)?|wipefs|fdisk|sfdisk|parted|cryptsetup)\b", re.I), "disk modification is disabled"),
+    (re.compile(r"\b(shutdown|reboot|poweroff|halt|Restart-Computer|Stop-Computer)\b", re.I), "power control is disabled"),
+    (re.compile(r"\b(mkfs(?:\.\w+)?|wipefs|fdisk|sfdisk|parted|cryptsetup|diskpart|Format-Volume|Clear-Disk|Remove-Partition)\b", re.I), "disk modification is disabled"),
     (re.compile(r"\bdd\b[^\n;]*\bof=/dev/", re.I), "raw disk writes are disabled"),
     (re.compile(r"(^|[;&|]\s*)rm\s+-[^\n;]*r[^\n;]*\s+/(?:\s|$|\*)", re.I), "recursive deletion of / is disabled"),
     (re.compile(r"(^|[;&|]\s*)rm\s+-[^\n;]*r[^\n;]*(?:~|\$HOME)(?:/|\s|$)", re.I), "recursive deletion of the home directory is disabled"),
+    (re.compile(r"Remove-Item\b[^\n;]*[A-Z]:\\(?:\s|$)", re.I), "recursive deletion of a drive root is disabled"),
     (re.compile(r"\b(chown|chmod)\b[^\n;]*\s+/(?:\s|$)", re.I), "root-wide permission changes are disabled"),
     (re.compile(r":\s*\(\s*\)\s*\{.*:\s*\|\s*:\s*&\s*\}\s*;", re.I | re.S), "fork bomb blocked"),
 ]
@@ -65,6 +71,9 @@ BLOCKED_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 SERVICE_NAME = re.compile(r"^[A-Za-z0-9@._:+-]{1,128}$")
 HOST_NAME = re.compile(r"^[A-Za-z0-9._-]{1,253}$")
 SIGNALS = {"HUP": signal.SIGHUP, "INT": signal.SIGINT, "TERM": signal.SIGTERM, "KILL": signal.SIGKILL}
+if IS_WINDOWS:
+    # Windows has no SIGHUP; os.kill still accepts SIGINT/SIGTERM/SIGKILL names.
+    SIGNALS.pop("HUP", None)
 
 
 def _trim(text: str, limit: int | None = None) -> str:
@@ -91,8 +100,51 @@ def _check_shell_command(command: str) -> None:
             raise ValueError(f"Blocked by host-system safety policy: {reason}")
 
 
+def _shell_argv(command: str) -> list[str]:
+    if IS_WINDOWS:
+        return ["powershell", "-NoProfile", "-NonInteractive", "-Command", command]
+    return ["/bin/bash", "-lc", command]
+
+
 def _run(argv: list[str], cwd: pathlib.Path | None = None, timeout: int = 30) -> subprocess.CompletedProcess[str]:
     return subprocess.run(argv, cwd=str(cwd) if cwd else None, capture_output=True, text=True, timeout=timeout)
+
+
+def _current_user() -> str:
+    for key in ("USER", "USERNAME", "LOGNAME"):
+        value = os.environ.get(key)
+        if value:
+            return value
+    try:
+        return getpass.getuser()
+    except Exception:
+        return "unknown"
+
+
+def _human(num_bytes: int) -> str:
+    size = float(num_bytes)
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if size < 1024 or unit == "TiB":
+            return f"{int(size)} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} TiB"
+
+
+def _dir_size(path: pathlib.Path) -> tuple[int, bool]:
+    """Walk a directory tree, capped. Returns (bytes, truncated)."""
+    total = 0
+    files = 0
+    truncated = False
+    for root, _dirs, names in os.walk(path):
+        for name in names:
+            files += 1
+            if files > 100000 or total > 2_000_000_000:
+                return total, True
+            try:
+                total += (pathlib.Path(root) / name).stat().st_size
+            except OSError:
+                continue
+    return total, truncated
 
 
 def _git_repo(path: str) -> pathlib.Path | dict[str, Any]:
@@ -107,18 +159,56 @@ def _git_repo(path: str) -> pathlib.Path | dict[str, Any]:
     return repo
 
 
+def _grep_python(base: pathlib.Path, pattern: str, limit: int) -> str:
+    """Pure-Python content search fallback (used on Windows when rg/grep are missing)."""
+    try:
+        regex = re.compile(pattern)
+    except re.error as exc:
+        return f"ERROR: invalid regex: {exc}"
+    hits: list[str] = []
+    files = 0
+    for item in base.rglob("*"):
+        if len(hits) >= limit:
+            break
+        if files > 20000:
+            hits.append("[scan truncated: too many files]")
+            break
+        try:
+            if item.is_symlink() or not item.is_file() or item.stat().st_size > 2_000_000:
+                continue
+        except OSError:
+            continue
+        files += 1
+        try:
+            text = item.read_text(errors="ignore")
+        except Exception:
+            continue
+        for lineno, line in enumerate(text.splitlines(), 1):
+            if regex.search(line):
+                hits.append(f"{item}:{lineno}:{line[:500]}")
+                if len(hits) >= limit:
+                    break
+    if not hits:
+        return "No matches."
+    out = "\n".join(hits)
+    if len(hits) >= limit:
+        out += "\n[match list truncated]"
+    return out
+
+
 @mcp.tool(
     title="Host identity",
     annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
 )
 def host_identity() -> dict[str, Any]:
-    """Return identity information for the real Linux host running this MCP server."""
+    """Return identity information for the real host running this MCP server."""
     return {
         "hostname": platform.node(),
+        "os": SYSTEM,
         "system": platform.system(),
         "release": platform.release(),
         "machine": platform.machine(),
-        "user": os.environ.get("USER") or os.environ.get("LOGNAME") or "unknown",
+        "user": _current_user(),
         "home": str(HOME),
         "pid": os.getpid(),
     }
@@ -129,22 +219,31 @@ def host_identity() -> dict[str, Any]:
     annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
 )
 def system_summary() -> str:
-    """Get a compact summary of the real Linux host: identity, uptime, disk and memory."""
-    commands = [
-        ["hostname"],
-        ["uname", "-a"],
-        ["id"],
-        ["uptime"],
-        ["df", "-h", "/"],
-        ["free", "-h"],
-    ]
+    """Get a compact summary of the real host: identity, uptime, disk and memory."""
     chunks: list[str] = []
-    for argv in commands:
+
+    def add(argv: list[str], timeout: int = 15) -> None:
         try:
-            proc = _run(argv, timeout=15)
-            chunks.append(f"$ {shlex.join(argv)}\n{proc.stdout}{proc.stderr}")
+            proc = _run(argv, timeout=timeout)
+            chunks.append(f"$ {' '.join(argv)}\n{proc.stdout}{proc.stderr}")
         except Exception as exc:
-            chunks.append(f"$ {shlex.join(argv)}\nERROR: {exc}")
+            chunks.append(f"$ {' '.join(argv)}\nERROR: {exc}")
+
+    if IS_WINDOWS:
+        add(["hostname"])
+        add(["whoami"])
+        add(["powershell", "-NoProfile", "-NonInteractive", "-Command",
+             "Get-ComputerInfo -Property OsName,OsVersion,OsArchitecture | Format-List | Out-String -Width 200"], 20)
+        add(["powershell", "-NoProfile", "-NonInteractive", "-Command",
+             "Get-PSDrive -PSProvider FileSystem | Format-Table | Out-String -Width 200"], 20)
+    elif IS_MAC:
+        for argv in (["hostname"], ["uname", "-a"], ["id"], ["uptime"],
+                     ["df", "-h", "/"], ["vm_stat"], ["sysctl", "hw.memsize"]):
+            add(argv)
+    else:
+        for argv in (["hostname"], ["uname", "-a"], ["id"], ["uptime"],
+                     ["df", "-h", "/"], ["free", "-h"]):
+            add(argv)
     return _trim("\n".join(chunks))
 
 
@@ -158,8 +257,9 @@ def system_summary() -> str:
     ),
 )
 def run_command(command: str, cwd: str = "", timeout_seconds: int = 60) -> dict[str, Any]:
-    """Run a Bash command on the real Linux host as the current desktop user.
+    """Run a shell command on the real host as the current desktop user.
 
+    Bash (`/bin/bash -lc`) on Linux/macOS, PowerShell on Windows.
     The server blocks privilege escalation and several obviously destructive system commands.
     The blocklist is only a guardrail; shell access remains powerful.
     """
@@ -171,7 +271,7 @@ def run_command(command: str, cwd: str = "", timeout_seconds: int = 60) -> dict[
     timeout = max(1, min(int(timeout_seconds), MAX_TIMEOUT))
     try:
         proc = subprocess.run(
-            ["/bin/bash", "-lc", command],
+            _shell_argv(command),
             cwd=str(workdir),
             capture_output=True,
             text=True,
@@ -205,7 +305,7 @@ def run_command(command: str, cwd: str = "", timeout_seconds: int = 60) -> dict[
 def read_file(path: str, max_chars: int = 50000) -> str:
     """Read a text file from an allowed host path.
 
-    Default readable roots are the user's home directory, /etc and /var/log.
+    Default readable roots are the home directory plus /etc and /var/log on Linux/macOS.
     Configure HOST_MCP_READ_ROOTS to change them.
     """
     target = pathlib.Path(path).expanduser().resolve()
@@ -255,7 +355,7 @@ def write_file(path: str, content: str, overwrite: bool = False) -> dict[str, An
     annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
 )
 def list_directory(path: str = "~", max_entries: int = 500) -> str:
-    """List an allowed directory on the real Linux host."""
+    """List an allowed directory on the real host."""
     target = pathlib.Path(path).expanduser().resolve()
     if not _is_under(target, READ_ROOTS):
         return f"ERROR: path is outside configured readable roots: {target}"
@@ -312,14 +412,16 @@ def file_search(root: str, pattern: str, max_results: int = 100) -> str:
         return f"ERROR: not a directory: {base}"
     limit = max(1, min(int(max_results), 1000))
     try:
-        if shutil.which("find"):
+        # NOTE: Windows ships its own find.exe with different syntax, so only use
+        # Unix find on non-Windows; elsewhere fall back to pathlib.
+        if os.name != "nt" and shutil.which("find"):
             # find exits nonzero on permission errors; still use whatever stdout it produced.
             proc = _run(["find", str(base), "-name", pattern, "-print"], timeout=60)
             lines = [line for line in proc.stdout.splitlines() if line][:limit]
         else:
             lines = [str(p) for p in list(base.rglob(pattern))[:limit]]
         if not lines:
-            err = proc.stderr.strip() if shutil.which("find") else ""
+            err = proc.stderr.strip() if (os.name != "nt" and shutil.which("find")) else ""
             return f"No matches.{(' Errors: ' + _trim(err, 500)) if err else ''}"
         out = "\n".join(lines)
         if len(lines) == limit:
@@ -334,7 +436,7 @@ def file_search(root: str, pattern: str, max_results: int = 100) -> str:
     annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
 )
 def file_grep(root: str, pattern: str, max_matches: int = 50) -> str:
-    """Recursively search file contents for a regex pattern. Prefers ripgrep, falls back to grep."""
+    """Recursively search file contents for a regex pattern. Prefers ripgrep, falls back to grep or pure Python."""
     base = pathlib.Path(root).expanduser().resolve()
     if not _is_under(base, READ_ROOTS):
         return f"ERROR: path is outside configured readable roots: {base}"
@@ -345,8 +447,10 @@ def file_grep(root: str, pattern: str, max_matches: int = 50) -> str:
         if shutil.which("rg"):
             # rg returns 2 on permission errors; still use stdout. -s silences that noise.
             argv = ["rg", "--no-heading", "--line-number", "-s", f"--max-count={limit}", pattern, str(base)]
-        else:
+        elif os.name != "nt":
             argv = ["grep", "-rn", "-s", f"--max-count={limit}", "-e", pattern, str(base)]
+        else:
+            return _trim(_grep_python(base, pattern, limit))
         proc = _run(argv, timeout=60)
         lines = proc.stdout.splitlines()[:limit]
         if not lines:
@@ -458,15 +562,22 @@ def file_delete(path: str, recursive: bool = False) -> dict[str, Any]:
     annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
 )
 def process_list(filter: str = "", limit: int = 30) -> str:
-    """List host processes sorted by CPU usage, optionally filtered by a substring."""
+    """List host processes (ps sorted by CPU on Linux/macOS, tasklist on Windows), optionally filtered by a substring."""
     count = max(1, min(int(limit), 200))
     try:
-        proc = _run(
-            ["ps", "-eo", "pid,ppid,user,%cpu,%mem,etime,comm", "--sort=-%cpu"],
-            timeout=15,
-        )
-        if proc.returncode != 0:
-            return f"ERROR: {proc.stderr.strip() or 'ps failed'}"
+        if IS_WINDOWS:
+            if not shutil.which("tasklist"):
+                return "ERROR: tasklist is not available on this host."
+            proc = _run(["tasklist", "/FO", "TABLE"], timeout=15)
+            if proc.returncode != 0:
+                return f"ERROR: {proc.stderr.strip() or 'tasklist failed'}"
+        else:
+            proc = _run(
+                ["ps", "-eo", "pid,ppid,user,%cpu,%mem,etime,comm", "--sort=-%cpu"],
+                timeout=15,
+            )
+            if proc.returncode != 0:
+                return f"ERROR: {proc.stderr.strip() or 'ps failed'}"
         lines = proc.stdout.splitlines()
         header, rows = (lines[0], lines[1:]) if lines else ("", [])
         if filter:
@@ -515,23 +626,45 @@ def process_kill(pid: int, signal_name: str = "TERM") -> dict[str, Any]:
     annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
 )
 def service_status(name: str, log_lines: int = 20) -> str:
-    """Show status and recent logs of a user-scope systemd service. System services are out of scope."""
+    """Show status of a user-scope service: systemd --user on Linux, launchctl on macOS, sc query on Windows."""
     if not SERVICE_NAME.match(name):
         return f"ERROR: invalid service name: {name!r}"
-    if not shutil.which("systemctl"):
-        return "ERROR: systemctl is not available on this host."
-    lines = max(0, min(int(log_lines), 200))
-    chunks = []
-    for argv in (
-        ["systemctl", "--user", "status", name, "--no-pager"],
-        ["journalctl", "--user", "-u", name, "-n", str(lines), "--no-pager"],
-    ):
-        try:
-            proc = _run(argv, timeout=15)
-            chunks.append(f"$ {shlex.join(argv)}\n{proc.stdout}{proc.stderr}")
-        except Exception as exc:
-            chunks.append(f"$ {shlex.join(argv)}\nERROR: {exc}")
-    return _trim("\n".join(chunks))
+    try:
+        if IS_WINDOWS:
+            if not shutil.which("sc"):
+                return "ERROR: sc is not available on this host."
+            proc = _run(["sc", "query", name], timeout=15)
+            return _trim(f"$ sc query {name}\n{proc.stdout}{proc.stderr}")
+        if IS_MAC:
+            if not shutil.which("launchctl"):
+                return "ERROR: launchctl is not available on this host."
+            proc = _run(["launchctl", "list"], timeout=15)
+            if proc.returncode != 0:
+                return f"ERROR: {proc.stderr.strip() or 'launchctl failed'}"
+            needle = name.lower()
+            matches = [line for line in proc.stdout.splitlines()
+                       if needle in line.lower() or line.strip().startswith("PID")]
+            if not matches:
+                return f"No matching launchd service for {name!r}."
+            return _trim("$ launchctl list (filtered)\n" + "\n".join(matches)
+                         + "\n\nFor logs use: log show --predicate "
+                           f"'process == \"{name}\"' --last 20m")
+        if not shutil.which("systemctl"):
+            return "ERROR: systemctl is not available on this host."
+        lines = max(0, min(int(log_lines), 200))
+        chunks = []
+        for argv in (
+            ["systemctl", "--user", "status", name, "--no-pager"],
+            ["journalctl", "--user", "-u", name, "-n", str(lines), "--no-pager"],
+        ):
+            try:
+                proc = _run(argv, timeout=15)
+                chunks.append(f"$ {shlex.join(argv)}\n{proc.stdout}{proc.stderr}")
+            except Exception as exc:
+                chunks.append(f"$ {shlex.join(argv)}\nERROR: {exc}")
+        return _trim("\n".join(chunks))
+    except Exception as exc:
+        return f"ERROR: {exc}"
 
 
 @mcp.tool(
@@ -539,19 +672,26 @@ def service_status(name: str, log_lines: int = 20) -> str:
     annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
 )
 def disk_usage(path: str = "") -> str:
-    """Show filesystem usage (df) plus size of one allowed path via du."""
+    """Show filesystem usage (df on Linux/macOS, drive usage on Windows) plus size of one allowed path."""
     chunks = []
     try:
-        proc = _run(["df", "-h"], timeout=15)
-        chunks.append(f"$ df -h\n{proc.stdout}{proc.stderr}")
+        if IS_WINDOWS:
+            total, used, free = shutil.disk_usage(HOME.anchor)
+            chunks.append(f"Drive {HOME.anchor} total={_human(total)} used={_human(used)} free={_human(free)}")
+        else:
+            proc = _run(["df", "-h"], timeout=15)
+            chunks.append(f"$ df -h\n{proc.stdout}{proc.stderr}")
     except Exception as exc:
-        chunks.append(f"$ df -h\nERROR: {exc}")
+        chunks.append(f"$ disk usage\nERROR: {exc}")
     if path:
         target = pathlib.Path(path).expanduser().resolve()
         if not _is_under(target, READ_ROOTS):
-            chunks.append(f"$ du -sh {path}\nERROR: path is outside configured readable roots: {target}")
+            chunks.append(f"Path {path}\nERROR: path is outside configured readable roots: {target}")
         elif not target.exists():
-            chunks.append(f"$ du -sh {path}\nERROR: path does not exist: {target}")
+            chunks.append(f"Path {path}\nERROR: path does not exist: {target}")
+        elif IS_WINDOWS:
+            size, truncated = _dir_size(target) if target.is_dir() else (target.stat().st_size, False)
+            chunks.append(f"Path {target}\nsize={_human(size)}{' [truncated]' if truncated else ''}")
         else:
             try:
                 proc = _run(["du", "-sh", str(target)], timeout=60)
@@ -616,8 +756,8 @@ def git_diff(path: str, staged: bool = False) -> str:
         diff_argv = ["git", "-C", str(repo), "diff"] + (["--cached"] if staged else [])
         stat = _run(stat_argv, timeout=15)
         diff = _run(diff_argv, timeout=15)
-        out = f"$ {shlex.join(stat_argv)}\n{stat.stdout}{stat.stderr}"
-        out += f"\n$ {shlex.join(diff_argv)}\n{diff.stdout}{diff.stderr}"
+        out = f"$ {' '.join(stat_argv)}\n{stat.stdout}{stat.stderr}"
+        out += f"\n$ {' '.join(diff_argv)}\n{diff.stdout}{diff.stderr}"
         return _trim(out or "(no changes)")
     except Exception as exc:
         return f"ERROR: {exc}"
@@ -691,7 +831,7 @@ def http_fetch(url: str, max_chars: int = 20000, timeout_seconds: int = 20) -> d
     timeout = max(1, min(int(timeout_seconds), 60))
     byte_cap = min(MAX_DOWNLOAD, 5_000_000)
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "claude-host-mcp/0.2"})
+        req = urllib.request.Request(url, headers={"User-Agent": "claude-host-mcp/0.3"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read(byte_cap + 1)
             truncated = len(raw) > byte_cap
@@ -760,7 +900,7 @@ def download_file(url: str, dest: str, overwrite: bool = False, timeout_seconds:
     timeout = max(1, min(int(timeout_seconds), MAX_TIMEOUT))
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        req = urllib.request.Request(url, headers={"User-Agent": "claude-host-mcp/0.2"})
+        req = urllib.request.Request(url, headers={"User-Agent": "claude-host-mcp/0.3"})
         total = 0
         with urllib.request.urlopen(req, timeout=timeout) as resp, open(target, "wb") as fh:
             while True:
