@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1 - 2026-09-07
+
+- Fix wrapper/impl name shadowing in ops, policy, snapshots (RecursionError on system_snapshot, diagnose, audit_search, file_version, file_restore).
+- Wrappers now resolve impls via sys.modules; verified live via stdio handshake: 88 tools, 5 static + 3 template resources, E2E calls green.
+
 ## 0.4.0 - 2026-09-07
 
 - Agent control plane: 88 tools + 8 resources across terminal, jobs, files, git, ops, snapshots, policy.

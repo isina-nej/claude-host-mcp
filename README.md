@@ -8,13 +8,13 @@ English | [فارسی](README.fa.md)
 
 ## Why
 
-Claude Desktop Cowork/Code tasks run in a restricted sandbox. This server bridges out: Claude calls **88 typed tools + 8 resources** on the host — shell, persistent terminals, background jobs, files, search, git, system monitoring, journal, ports, Docker, packages, network, snapshots — with scoped file roots, a policy engine, audit trail, and dangerous-command guardrails.
+Claude Desktop Cowork/Code tasks run in a restricted sandbox. This server bridges out: Claude calls **88 typed tools + 8 resources (5 static + 3 templates)** on the host — shell, persistent terminals, background jobs, files, search, git, system monitoring, journal, ports, Docker, packages, network, snapshots — with scoped file roots, a policy engine, audit trail, and dangerous-command guardrails.
 
 Design goal: everything a Linux developer/admin does in a terminal, an agent can do — semantically, observably, cancellably, auditably, and reversibly.
 
 ## Tools
 
-88 tools in nine groups. Only destructive tools prompt (see [Approval policy](#approval-policy)).
+88 tools in nine groups (verified live via stdio handshake). Only destructive tools prompt (see [Approval policy](#approval-policy)).
 
 ### Core
 
@@ -342,7 +342,7 @@ PYTHONPATH=src python -m claude_host_mcp.server  # speak JSON-RPC on stdin; see 
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md). Current: `0.4.0`.
+See [CHANGELOG.md](CHANGELOG.md). Current: `0.4.1`.
 
 ## License
 
