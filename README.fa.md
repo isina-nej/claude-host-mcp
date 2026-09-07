@@ -1,8 +1,14 @@
 # claude-host-mcp
 
+![version](https://img.shields.io/badge/version-0.5.0-blue) ![tools](https://img.shields.io/badge/tools-114-brightgreen) ![resources](https://img.shields.io/badge/resources-8-blueviolet) ![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey) ![license](https://img.shields.io/badge/license-MIT-yellow)
+
 > سرور MCP محلی که به Claude Desktop دسترسی کنترل‌شده به ماشین میزبان واقعی می‌دهد — نه فقط محیط ایزوله (VM/سشن) خودش.
 
+![claude-host-mcp hero](assets/hero.png)
+
 ساخته‌شده با MCP Python SDK نسخه **v2** (`MCPServer`) و انتقال stdio. با کاربر عادی اجرا می‌شود. روی **لینوکس، مک و ویندوز** کار می‌کند — ابزارها بر اساس سیستم‌عامل تطبیق داده می‌شوند (Bash/PowerShell، ps/tasklist، systemd/launchd/sc).
+
+**یک سرور، کل میزبان:** ترمینال ماندگار · جاب پس‌زمینه · فایل+جست‌وجو · گیت+ورک‌تری · مانیتورینگ · داکر · گیت‌هاب/دیتابیس/اسلک · اسنپشات · حسابرسی.
 
 [English](README.md) | فارسی
 
@@ -12,9 +18,36 @@
 
 هدف طراحی: هر کاری که یک توسعه‌دهنده/ادمین لینوکس در ترمینال می‌کند، ایجنت هم بتواند بکند — معنایی، قابل مشاهده، قابل لغو، قابل حسابرسی و قابل برگشت.
 
+## شروع سریع (۶۰ ثانیه)
+
+```bash
+git clone https://github.com/isina-nej/claude-host-mcp.git
+cd claude-host-mcp
+chmod +x install.sh install-mac.sh doctor.sh uninstall.sh
+./install.sh        # مک: ./install-mac.sh · ویندوز: .\install.ps1
+```
+
+بعد **Claude Desktop را کامل ببندید و باز کنید**، یک سشن جدید بسازید و بگویید:
+
+```text
+Use the host-system MCP tool host_identity.
+```
+
+نام میزبان واقعی + کاربر شما در جواب = وصل به میزبان. قدم بعدی:
+
+```text
+system_snapshot  →  یک‌جا: cpu و حافظه و دیسک و load و دما و باتری و GPU و شبکه
+diagnose "127.0.0.1:3000"  →  مسیر DNS به TCP به مالک به HTTP با failed_layers
+memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  سشن بعد یادش می‌ماند
+```
+
 ## ابزارها
 
 ۱۱۴ ابزار در دوازده گروه (تأییدشده زنده با handshake استاندارد). فقط ابزارهای مخرب تأیید می‌خواهند (بخش [سیاست تأیید](#سیاست-تأیید)).
+
+![معماری](assets/architecture.png)
+
+**راهنمای خواندن:** هسته = شل و فایل روزمره · ترمینال+جاب = کار طولانی بدون polling · فایل+گیت = ویرایش معنایی با برگشت · عملیات+داکر = اول مشاهده بعد اقدام · ذهن+وب+یکپارچه‌سازی = حافظه و دنیای بیرون، همه با کلید.
 
 ### هسته
 
@@ -121,6 +154,8 @@
 | `port_owner` | مالک یک پورت listening: pid و comm و cmdline و cwd. |
 | `diagnose` | عیب‌یابی لایه‌ای: برای `host:port` یا `http(s)://` مسیر DNS به TCP به مالک به HTTP به منابع؛ برای `service:NAME` مسیر سرویس به پروسس به ژورنال به پورت‌ها. خروجی `failed_layers`. |
 
+![جریان diagnose](assets/diagnose-flow.png)
+
 ### داکر
 
 نیازمند CLI داکر. تغییرها محدود به پروفایل developer/full هستند و تأیید می‌خواهند.
@@ -221,6 +256,12 @@
 فقط ابزارهای مخرب تأیید می‌خواهند: `file_delete` و `file_move` و `terminal_close` و `terminal_signal` و `process_kill` و `job_cancel` و `git_commit` و `git_reset` و `git_revert` و `git_merge` و `git_rebase` و `git_checkout` و `git_clean` (اجرا) و `git_tag` (ساخت/حذف) و `git_stash` (pop/drop) و `git_worktree_*` (ساخت/حذف) و `snapshot_restore` و `file_restore` و تغییرهای `docker_*` و `package_*` و `memory_forget` و `think_clear` و ساخت `github_issue` و `github_pr` و نوشتن `db_query` و `browser_shot` و `drive_get` و `slack_send`. بقیه — شل، خواندن، جست‌وجو، مانیتورینگ، ژورنال، پورت، diagnose — بدون اصطکاک تأیید اجرا می‌شوند.
 
 > نکته: حذف از طریق شل (`rm` یا `Remove-Item` داخل `run_command`) بلاک نیست و تأیید نمی‌خواهد. برای حذف محافظت‌شده از `file_delete` استفاده کنید.
+
+## ایمنی در یک نگاه
+
+![مدل ایمنی](assets/safety.png)
+
+سه پروفایل، یک قانون: **مخرب = تأیید**. حالت `safe` فقط ابزارهای خواندنی را رد می‌کند؛ `developer` (پیش‌فرض) فضای کاری و گیت و پروسس و شبکه را اضافه می‌کند؛ `full` عملیات سبک داکر/پکیج/سرویس را باز می‌کند. `reset --hard` و اجرای `clean` علاوه بر تأیید نیازمند `confirm=true` در خود کال هستند. secretها (توکن و DSN) هرگز در audit لاگ نمی‌شوند.
 
 ## امنیت
 

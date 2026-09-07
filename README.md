@@ -1,8 +1,14 @@
 # claude-host-mcp
 
+![version](https://img.shields.io/badge/version-0.5.0-blue) ![tools](https://img.shields.io/badge/tools-114-brightgreen) ![resources](https://img.shields.io/badge/resources-8-blueviolet) ![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey) ![license](https://img.shields.io/badge/license-MIT-yellow)
+
 > Local MCP server that gives Claude Desktop controlled access to the real host machine — not just its isolated VM/session.
 
+![claude-host-mcp hero](assets/hero.png)
+
 Built on MCP Python SDK **v2** (`MCPServer`), stdio transport. Runs as your normal user. Works on **Linux, macOS, Windows** — tools adapt per OS (Bash/PowerShell, ps/tasklist, systemd/launchd/sc, df/drive usage).
+
+**One server, full host:** persistent terminals · background jobs · files+search · git+worktrees · monitoring · Docker · GitHub/DB/Slack · snapshots · audit.
 
 English | [فارسی](README.fa.md)
 
@@ -12,9 +18,36 @@ Claude Desktop Cowork/Code tasks run in a restricted sandbox. This server bridge
 
 Design goal: everything a Linux developer/admin does in a terminal, an agent can do — semantically, observably, cancellably, auditably, and reversibly.
 
+## Quick start (60 seconds)
+
+```bash
+git clone https://github.com/isina-nej/claude-host-mcp.git
+cd claude-host-mcp
+chmod +x install.sh install-mac.sh doctor.sh uninstall.sh
+./install.sh        # macOS: ./install-mac.sh · Windows: .\install.ps1
+```
+
+Then **fully restart Claude Desktop**, open a new session, and say:
+
+```text
+Use the host-system MCP tool host_identity.
+```
+
+Real hostname + your user in the reply = wired to the host. Next taste:
+
+```text
+system_snapshot  →  cpu, memory, disk, load, temps, battery, gpu, net in one call
+diagnose "127.0.0.1:3000"  →  DNS → TCP → owner → HTTP → resources, with failed_layers
+memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  it remembers next session
+```
+
 ## Tools
 
 114 tools in twelve groups (verified live via stdio handshake). Only destructive tools prompt (see [Approval policy](#approval-policy)).
+
+![architecture](assets/architecture.png)
+
+**Reading guide:** Core = everyday shell+files · Terminal+Jobs = long-running work without polling · Files/Git = semantic editing with rollback · Ops+Docker = observe then act · Mind+Web+Integrations = memory and outside world, all credential-gated.
 
 ### Core
 
@@ -121,6 +154,8 @@ One shell process per session, kept alive across calls. For dev servers, REPLs, 
 | `port_owner` | Owner of a listening port: pid, comm, cmdline, cwd. |
 | `diagnose` | Layered diagnosis: `host:port`/`http(s)://` runs DNS→TCP→owner→HTTP→resources; `service:NAME` runs service→process→journal→ports. Returns `failed_layers`. |
 
+![diagnose flow](assets/diagnose-flow.png)
+
 ### Docker
 
 Requires the `docker` CLI. Mutations are profile-gated (developer/full) and prompt.
@@ -221,6 +256,12 @@ Live context without tool calls:
 Only destructive tools prompt: `file_delete`, `file_move`, `terminal_close`, `terminal_signal`, `process_kill`, `job_cancel`, `git_commit`, `git_reset`, `git_revert`, `git_merge`, `git_rebase`, `git_checkout`, `git_clean` (exec), `git_tag` (create/delete), `git_stash` (pop/drop), `git_worktree_*` (create/remove), `snapshot_restore`, `file_restore`, `docker_*` (mutations), `package_*` (mutations), `memory_forget`, `think_clear`, `github_issue`/`github_pr` (create), `db_query` (writes), `browser_shot`, `drive_get`, `slack_send`. Everything else — shell, reads, search, monitoring, journal, ports, diagnose — runs without approval friction.
 
 > Caveat: deletion via shell (`rm` / `Remove-Item` inside `run_command`) is NOT blocked and does NOT prompt. Use `file_delete` for guarded deletes that request approval.
+
+## Safety at a glance
+
+![safety model](assets/safety.png)
+
+Three profiles, one rule: **destructive = prompt**. `safe` passes read-only tools only; `developer` (default) adds workspace+git+process+network; `full` unlocks Docker/package/service-style ops. `reset --hard` and `clean` execution additionally need `confirm=true` in the call itself. Secrets (tokens, DSNs) never reach the audit log.
 
 ## Security
 
