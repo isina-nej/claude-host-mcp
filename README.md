@@ -163,7 +163,11 @@ Hard blocks in `run_command`: `sudo`/`su`/`pkexec`, shutdown/reboot/poweroff (`R
 
 Additional limits: `process_kill` refuses PID 1 and self; `file_delete` refuses configured roots; `git_commit` never pushes; `service_status` user-scope only; `download_file`/`http_fetch` `http(s)` only, byte-capped.
 
-> Blocklist = guardrail, not sandbox. General shell access is inherently powerful. Keep Claude tool-approval prompts enabled. Review commands before approving. Tighten `*_ROOTS` to least privilege.
+### Approval policy (deletion-gated)
+
+Only deletion-like tools are marked `destructive_hint=True` and should prompt for approval in Claude Desktop: `file_delete`, `file_move`, `process_kill`, `git_commit`. Everything else is non-destructive by annotation and runs without a prompt (subject to the client's own policy).
+
+> Caveat: `run_command` gives raw shell access, so `rm` typed into the shell bypasses `file_delete` guards. The blocklist is a guardrail, not a sandbox. If you want every delete gated, review shell commands or restrict `run_command` usage. Tighten `*_ROOTS` to least privilege.
 
 ## Diagnostics
 

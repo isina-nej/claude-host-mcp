@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Deletion-gated approval policy: only file_delete, file_move, process_kill, git_commit are destructive_hint=True.
+- run_command/write_file/copy/download/http_fetch marked non-destructive; open_world_hint cleared where unused.
+- Docs (EN+FA) explain the approval policy and the rm-via-shell caveat.
+
 ## 0.3.0 - 2026-09-07
 
 - Cross-platform: Linux, macOS, Windows. Same 24 tools, OS-adaptive internals.

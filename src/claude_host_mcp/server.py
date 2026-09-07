@@ -251,9 +251,9 @@ def system_summary() -> str:
     title="Run command on host",
     annotations=ToolAnnotations(
         read_only_hint=False,
-        destructive_hint=True,
+        destructive_hint=False,
         idempotent_hint=False,
-        open_world_hint=True,
+        open_world_hint=False,
     ),
 )
 def run_command(command: str, cwd: str = "", timeout_seconds: int = 60) -> dict[str, Any]:
@@ -261,7 +261,8 @@ def run_command(command: str, cwd: str = "", timeout_seconds: int = 60) -> dict[
 
     Bash (`/bin/bash -lc`) on Linux/macOS, PowerShell on Windows.
     The server blocks privilege escalation and several obviously destructive system commands.
-    The blocklist is only a guardrail; shell access remains powerful.
+    Note: deletion via shell (rm / Remove-Item) is NOT blocked and does NOT prompt;
+    use file_delete for guarded deletes that request approval.
     """
     _check_shell_command(command)
     workdir = pathlib.Path(cwd).expanduser().resolve() if cwd else HOME
@@ -325,7 +326,7 @@ def read_file(path: str, max_chars: int = 50000) -> str:
     title="Write host file",
     annotations=ToolAnnotations(
         read_only_hint=False,
-        destructive_hint=True,
+        destructive_hint=False,
         idempotent_hint=True,
         open_world_hint=False,
     ),
@@ -785,7 +786,7 @@ def git_branch(path: str) -> str:
     title="Git commit",
     annotations=ToolAnnotations(
         read_only_hint=False,
-        destructive_hint=False,
+        destructive_hint=True,
         idempotent_hint=False,
         open_world_hint=False,
     ),
@@ -818,7 +819,7 @@ def git_commit(path: str, message: str) -> dict[str, Any]:
 
 @mcp.tool(
     title="Fetch URL",
-    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
 )
 def http_fetch(url: str, max_chars: int = 20000, timeout_seconds: int = 20) -> dict[str, Any]:
     """Fetch an http(s) URL from the host and return its text. Response size is capped."""
@@ -853,7 +854,7 @@ def http_fetch(url: str, max_chars: int = 20000, timeout_seconds: int = 20) -> d
 
 @mcp.tool(
     title="Check TCP port",
-    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=True),
+    annotations=ToolAnnotations(read_only_hint=True, open_world_hint=False),
 )
 def network_check(host: str, port: int, timeout_seconds: int = 5) -> dict[str, Any]:
     """Test whether a TCP port on a host is reachable from this machine."""
@@ -881,7 +882,7 @@ def network_check(host: str, port: int, timeout_seconds: int = 5) -> dict[str, A
         read_only_hint=False,
         destructive_hint=False,
         idempotent_hint=True,
-        open_world_hint=True,
+        open_world_hint=False,
     ),
 )
 def download_file(url: str, dest: str, overwrite: bool = False, timeout_seconds: int = 60) -> dict[str, Any]:
