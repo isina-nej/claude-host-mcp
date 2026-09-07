@@ -4,6 +4,8 @@
 
 Built on MCP Python SDK **v2** (`MCPServer`), stdio transport. Runs as your normal Linux user.
 
+English | [فارسی](README.fa.md)
+
 ## Why
 
 Claude Desktop Cowork/Code tasks run in a restricted sandbox. This server bridges out: Claude calls 24 typed tools on the host for shell, files, processes, git, and network — with scoped file roots and dangerous-command guardrails.
