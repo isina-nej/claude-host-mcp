@@ -532,6 +532,8 @@ Two prompt-only skills live in `skills/`. No code, just fixed tool order. Built 
 
 Triggers: service down / "بالا نمیاد" → morning-diagnose. Patch/fix/deploy / "درستش کن" → safe-deploy.
 
+Installers copy `skills/` into `~/.claude/skills/` automatically (`install.sh`, `install-mac.sh`, `install.ps1`). Skip with `./install.sh --skip-skills` or `.\install.ps1 -SkipSkills`. Override dest with `HOST_MCP_SKILLS_DIR`. Only skills carrying `installed-by-host-mcp` are removed on uninstall; your own same-named skills are backed up, never overwritten. `./doctor.sh` / `.\doctor.ps1` report installed vs missing.
+
 ```python
 from mcp.server import MCPServer
 mcp = MCPServer("Host System")

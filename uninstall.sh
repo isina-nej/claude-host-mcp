@@ -33,6 +33,16 @@ for cfg in configs:
     print('Backup:', backup)
 PY
 
+SKILLS_DEST="${HOST_MCP_SKILLS_DIR:-$HOME/.claude/skills}"
+for skill_dir in "$SKILLS_DEST"/*/; do
+  [ -d "$skill_dir" ] || continue
+  if [ -e "$skill_dir/installed-by-host-mcp" ]; then
+    skill="$(basename "$skill_dir")"
+    rm -rf "$skill_dir"
+    echo "Removed skill installed by host-mcp: $skill"
+  fi
+done
+
 rm -rf "$INSTALL_DIR"
 echo "Removed $INSTALL_DIR"
 echo "Restart Claude Desktop to finish uninstalling."

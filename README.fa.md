@@ -413,6 +413,8 @@ memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  سشن بعد ی
 
 تریگر: سرویس down یا «بالا نمیاد» ← morning-diagnose. پچ یا فیکس یا «درستش کن» ← safe-deploy.
 
+نصاب‌ها `skills/` را خودکار در `~/.claude/skills/` کپی می‌کنند (`install.sh` و `install-mac.sh` و `install.ps1`). رد با `./install.sh --skip-skills` یا `.\install.ps1 -SkipSkills`. مقصد با `HOST_MCP_SKILLS_DIR` عوض می‌شود. فقط اسکیل دارای `installed-by-host-mcp` در uninstall پاک می‌شود؛ اسکیل هم‌نام خودت بکاپ می‌گیرد نه overwrite. `doctor` وضعیت نصب را گزارش می‌دهد.
+
 ```python
 from mcp.server import MCPServer
 mcp = MCPServer("Host System")

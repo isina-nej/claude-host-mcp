@@ -22,6 +22,13 @@ if (Test-Path $venvPy) {
   & $venvPy -c "import importlib.metadata; print('mcp', importlib.metadata.version('mcp')); from mcp.server import MCPServer; print('MCPServer import OK')"
 }
 
+Write-Host "`n=== SKILLS ==="
+$SkillsDir = if ($env:HOST_MCP_SKILLS_DIR) { $env:HOST_MCP_SKILLS_DIR } else { Join-Path $env:USERPROFILE ".claude\skills" }
+foreach ($s in @("morning-diagnose", "safe-deploy")) {
+  $p = Join-Path $SkillsDir "$s\SKILL.md"
+  if (Test-Path $p) { Write-Host "skill ${s}: installed ($p)" } else { Write-Host "skill ${s}: missing ($p)" }
+}
+
 Write-Host "`n=== CLAUDE CONFIG ==="
 $config = if ($env:CLAUDE_DESKTOP_CONFIG) { $env:CLAUDE_DESKTOP_CONFIG } else { Join-Path $env:APPDATA "Claude\claude_desktop_config.json" }
 Write-Host $config

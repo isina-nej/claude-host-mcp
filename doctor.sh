@@ -56,6 +56,17 @@ for p in paths:
 PY
 
 echo
+echo '=== SKILLS ==='
+SKILLS_DEST="${HOST_MCP_SKILLS_DIR:-$HOME/.claude/skills}"
+for s in morning-diagnose safe-deploy; do
+  if [ -f "$SKILLS_DEST/$s/SKILL.md" ]; then
+    echo "skill $s: installed ($SKILLS_DEST/$s)"
+  else
+    echo "skill $s: missing ($SKILLS_DEST/$s)"
+  fi
+done
+
+echo
 echo '=== CLAUDE DESKTOP ==='
 command -v claude-desktop 2>/dev/null || true
 claude-desktop --version 2>/dev/null || true

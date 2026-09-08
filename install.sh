@@ -3,6 +3,13 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="${HOST_MCP_INSTALL_DIR:-$HOME/.local/share/claude-host-mcp}"
+SKILLS_DEST="${HOST_MCP_SKILLS_DIR:-$HOME/.claude/skills}"
+SKIP_SKILLS="${HOST_MCP_SKIP_SKILLS:-0}"
+for arg in "$@"; do
+  case "$arg" in
+    --skip-skills) SKIP_SKILLS=1 ;;
+  esac
+done
 
 say() { printf '%s\n' "$*"; }
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -22,9 +29,41 @@ cp -a "$PROJECT_DIR/pyproject.toml" "$PROJECT_DIR/README.md" "$INSTALL_DIR/"
 rm -rf "$INSTALL_DIR/src"
 cp -a "$PROJECT_DIR/src" "$INSTALL_DIR/"
 
+# Install bundled prompt skills into the user's Claude skills dir.
+# Idempotent: safe to re-run; per-skill backups are timestamped.
+if [ "$SKIP_SKILLS" = "1" ]; then
+  say "Skipping skills install (--skip-skills)."
+else
+  if [ -d "$PROJECT_DIR/skills" ]; then
+    mkdir -p "$SKILLS_DEST"
+    for skill_dir in "$PROJECT_DIR/skills"/*/; do
+      skill="$(basename "$skill_dir")"
+      case "$skill" in
+        *[!a-z0-9-]*|"") say "Skipping invalid skill name: $skill"; continue ;;
+      esac
+      [ -f "$skill_dir/SKILL.md" ] || { say "Skipping $skill (no SKILL.md)"; continue; }
+      if [ -e "$SKILLS_DEST/$skill" ] && [ ! -e "$SKILLS_DEST/$skill.installed-by-host-mcp" ]; then
+        stamp="$(date +%Y%m%d-%H%M%S)"
+        mv "$SKILLS_DEST/$skill" "$SKILLS_DEST/$skill.backup-host-mcp-$stamp"
+        say "Backed up existing skill: $skill"
+      fi
+      rm -rf "$SKILLS_DEST/$skill"
+      cp -a "$skill_dir" "$SKILLS_DEST/$skill"
+      touch "$SKILLS_DEST/$skill/installed-by-host-mcp"
+      say "Skill installed: $skill"
+    done
+  else
+    say "No bundled skills dir; skipping skills install."
+  fi
+fi
+
 if command -v uv >/dev/null 2>&1; then
   say "Using uv: $(command -v uv)"
-  uv venv --python python3 "$INSTALL_DIR/.venv" >/dev/null
+  if [ -d "$INSTALL_DIR/.venv" ]; then
+    uv venv --python python3 --clear "$INSTALL_DIR/.venv" >/dev/null
+  else
+    uv venv --python python3 "$INSTALL_DIR/.venv" >/dev/null
+  fi
   uv pip install --python "$INSTALL_DIR/.venv/bin/python" -e "$INSTALL_DIR"
 else
   say "uv not found; using python3 -m venv + pip"
@@ -134,3 +173,4 @@ say ""
 say "Installed successfully."
 say "Restart Claude Desktop completely, then start a new Cowork/Code task."
 say "Test prompt: Use the host-system MCP tool host_identity."
+say "Skills: morning-diagnose, safe-deploy (unless --skip-skills)."

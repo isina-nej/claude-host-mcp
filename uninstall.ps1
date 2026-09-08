@@ -10,6 +10,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$SkillsDir = if ($env:HOST_MCP_SKILLS_DIR) { $env:HOST_MCP_SKILLS_DIR } else { Join-Path $env:USERPROFILE ".claude\skills" }
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $py = Get-Command python -ErrorAction SilentlyContinue
 if (-not $py) { $py = Get-Command python3 -ErrorAction SilentlyContinue }
@@ -41,6 +42,13 @@ if cfg.exists():
             print('Removed host-system from:', cfg)
             print('Backup:', backup)
 "@
+
+Get-ChildItem -Directory $SkillsDir -ErrorAction SilentlyContinue | ForEach-Object {
+  if (Test-Path (Join-Path $_.FullName "installed-by-host-mcp")) {
+    Remove-Item -Recurse -Force $_.FullName
+    Write-Host "Removed skill installed by host-mcp: $($_.Name)"
+  }
+}
 
 if (Test-Path $InstallDir) { Remove-Item -Recurse -Force $InstallDir }
 Write-Host "Removed $InstallDir"

@@ -10,7 +10,9 @@
 [CmdletBinding()]
 param(
   [string]$InstallDir = (Join-Path $env:USERPROFILE ".local\share\claude-host-mcp"),
-  [string]$ClaudeConfig = ""
+  [string]$ClaudeConfig = "",
+  [string]$SkillsDir = (Join-Path $env:USERPROFILE ".claude\skills"),
+  [switch]$SkipSkills
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,10 +34,39 @@ Copy-Item (Join-Path $ProjectDir "pyproject.toml") (Join-Path $InstallDir "pypro
 if (Test-Path (Join-Path $InstallDir "src")) { Remove-Item -Recurse -Force (Join-Path $InstallDir "src") }
 Copy-Item (Join-Path $ProjectDir "src") (Join-Path $InstallDir "src") -Recurse -Force
 
+# Install bundled prompt skills into the user's Claude skills dir (idempotent).
+if ($SkipSkills) {
+  Say "Skipping skills install (-SkipSkills)."
+} elseif (Test-Path (Join-Path $ProjectDir "skills")) {
+  New-Item -ItemType Directory -Force -Path $SkillsDir | Out-Null
+  Get-ChildItem -Directory (Join-Path $ProjectDir "skills") | ForEach-Object {
+    $skill = $_.Name
+    if ($skill -notmatch '^[a-z0-9-]+$') { Say "Skipping invalid skill name: $skill"; return }
+    if (-not (Test-Path (Join-Path $_.FullName "SKILL.md"))) { Say "Skipping $skill (no SKILL.md)"; return }
+    $dest = Join-Path $SkillsDir $skill
+    $marker = Join-Path $dest "installed-by-host-mcp"
+    if ((Test-Path $dest) -and -not (Test-Path $marker)) {
+      $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+      Rename-Item $dest "$dest.backup-host-mcp-$stamp" -Force
+      Say "Backed up existing skill: $skill"
+    }
+    if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+    Copy-Item $_.FullName $dest -Recurse -Force
+    New-Item -ItemType File -Path $marker -Force | Out-Null
+    Say "Skill installed: $skill"
+  }
+} else {
+  Say "No bundled skills dir; skipping skills install."
+}
+
 $venvPy = Join-Path $InstallDir ".venv\Scripts\python.exe"
 if (Get-Command uv -ErrorAction SilentlyContinue) {
   Say "Using uv"
-  & uv venv --python python "$InstallDir\.venv" | Out-Null
+  if (Test-Path "$InstallDir\.venv") {
+    & uv venv --python python --clear "$InstallDir\.venv" | Out-Null
+  } else {
+    & uv venv --python python "$InstallDir\.venv" | Out-Null
+  }
   & uv pip install --python $venvPy -e $InstallDir
 } else {
   Say "uv not found; using venv + pip"
@@ -77,3 +108,4 @@ print('MCP server: host-system')
 Say ""
 Say "Installed. Fully restart Claude Desktop, then new session."
 Say "Test: Use the host-system MCP tool host_identity."
+Say "Skills: morning-diagnose, safe-deploy (unless -SkipSkills)."
