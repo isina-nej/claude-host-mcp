@@ -1,6 +1,6 @@
 # claude-host-mcp
 
-![version](https://img.shields.io/badge/version-0.5.0-blue) ![tools](https://img.shields.io/badge/tools-114-brightgreen) ![resources](https://img.shields.io/badge/resources-8-blueviolet) ![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey) ![license](https://img.shields.io/badge/license-MIT-yellow)
+![version](https://img.shields.io/badge/version-0.6.0-blue) ![tools](https://img.shields.io/badge/tools-116-brightgreen) ![resources](https://img.shields.io/badge/resources-8-blueviolet) ![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey) ![license](https://img.shields.io/badge/license-MIT-yellow)
 
 > **Give Claude Desktop hands on your real machine — safely.** One local MCP server (`host-system`) that lets Claude run shell, manage files, drive dev servers, inspect the system, use git, Docker, GitHub, databases, and the web — on Linux, macOS, and Windows — with approvals, audit, and rollback.
 
@@ -149,14 +149,14 @@ Claude Desktop ──stdio/JSON-RPC──▶ host-system MCP ──▶ your mach
 **What it does NOT do:** no privilege escalation (`sudo`/`su` blocked), no shutdown/reboot, no disk formatting, no push on your behalf (`git_commit` never pushes), no silent exfiltration (secrets never hit the audit log; integrations need your keys).
 ## 🧰 Tools
 
-114 tools in twelve groups (verified live via stdio handshake). Only destructive tools prompt (see [Approval policy](#-approval-policy)).
+116 tools in twelve groups (verified live via stdio handshake). Only destructive tools prompt (see [Approval policy](#-approval-policy)).
 
 ![architecture](assets/architecture.png)
 
 **Reading guide:** Core = everyday shell+files · Terminal+Jobs = long-running work without polling · Files/Git = semantic editing with rollback · Ops+Docker = observe then act · Mind+Web+Integrations = memory and outside world, all credential-gated.
 
 <details>
-<summary><b>Show all 114 tools</b> — click to expand the full reference</summary>
+<summary><b>Show all 116 tools</b> — click to expand the full reference</summary>
 
 ### Core
 
@@ -310,8 +310,9 @@ No new dependencies. Mirrors the official time/memory/sequential-thinking server
 | Tool | Description |
 |---|---|
 | `fetch_text` | Fetch URL → LLM-ready text (boilerplate stripped, ≤3 redirects). |
-| `web_search` | Keyless duckduckgo or Brave with key. Disabled by default (`HOST_MCP_WEB_SEARCH`). |
-| `browser_fetch` | Headless-Chrome DOM text. Opt-in (`HOST_MCP_BROWSER=chrome`). |
+| `web_search` | Keyless-first fan-out (html+wiki+duck, deduped); `backend` auto\|wiki\|duck\|html\|brave; Brave when keyed. |
+| `wiki_search` | Dedicated Wikipedia search. Keyless, reputable, structured. |
+| `browser_fetch` | JS render via local Chrome when installed, fetch_text fallback otherwise. |
 | `browser_shot` | Page screenshot PNG into writable roots. Opt-in; prompts. |
 
 ### Integrations: GitHub, databases, maps, drive, Slack
@@ -320,17 +321,18 @@ All credential-gated: without keys they return setup errors, never crash. Secret
 
 | Tool | Description |
 |---|---|
-| `github_repo` | Repo metadata (needs `GITHUB_TOKEN`). |
+| `github_repo` | Repo metadata keyless (60/hr); token raises quota. |
 | `github_issue` | List/get/create issues. Create prompts. |
 | `github_pr` | List/get/create PRs. Create prompts. |
-| `db_query` | SELECT-first SQL: sqlite via stdlib, postgres via `psql`. Writes need `confirm=true` + full profile. |
+| `db_query` | SELECT-first SQL; empty dsn auto-discovers local sqlite. Writes need `confirm=true` + full profile. |
+| `db_status` | Keyless DB probe: sqlite files, postgres/redis reachability. |
 | `db_tables` | List tables for a DSN. |
-| `redis_get` | GET a key via `redis-cli` (needs `REDIS_URL`). |
+| `redis_get` | GET a key; defaults to local 127.0.0.1:6379; docker:redis fallback. |
 | `maps_geocode` | Forward geocode (Google with key, else nominatim). |
 | `maps_directions` | Routing (Google with key, else straight-line km). |
-| `drive_list` | List `rclone` remote path (needs `RCLONE_REMOTE`). |
+| `drive_list` | List `rclone` remote; auto-picks when one remote exists. |
 | `drive_get` | Download remote file into writable roots. Prompts. |
-| `slack_list` | List channels (needs `SLACK_BOT_TOKEN`). |
+| `slack_list` | List channels (`SLACK_BOT_TOKEN`; send also works via webhook). |
 | `slack_send` | Post a message. Prompts. |
 
 ### Snapshots and audit
@@ -346,20 +348,22 @@ All credential-gated: without keys they return setup errors, never crash. Secret
 | `audit_search` | Filter by tool substring + ok true/false. |
 
 | `fetch_text` | Fetch URL → LLM-ready text (boilerplate stripped, ≤3 redirects). |
-| `web_search` | Keyless duckduckgo or Brave with key. Disabled by default (`HOST_MCP_WEB_SEARCH`). |
-| `browser_fetch` | Headless-Chrome DOM text. Opt-in (`HOST_MCP_BROWSER=chrome`). |
+| `web_search` | Keyless-first fan-out (html+wiki+duck, deduped); `backend` auto\|wiki\|duck\|html\|brave; Brave when keyed. |
+| `wiki_search` | Dedicated Wikipedia search. Keyless, reputable, structured. |
+| `browser_fetch` | JS render via local Chrome when installed, fetch_text fallback otherwise. |
 | `browser_shot` | Page screenshot PNG into writable roots. Opt-in; prompts. |
-| `github_repo` | Repo metadata (needs `GITHUB_TOKEN`). |
+| `github_repo` | Repo metadata keyless (60/hr); token raises quota. |
 | `github_issue` | List/get/create issues. Create prompts. |
 | `github_pr` | List/get/create PRs. Create prompts. |
-| `db_query` | SELECT-first SQL: sqlite via stdlib, postgres via `psql`. Writes need `confirm=true` + full profile. |
+| `db_query` | SELECT-first SQL; empty dsn auto-discovers local sqlite. Writes need `confirm=true` + full profile. |
+| `db_status` | Keyless DB probe: sqlite files, postgres/redis reachability. |
 | `db_tables` | List tables for a DSN. |
-| `redis_get` | GET a key via `redis-cli` (needs `REDIS_URL`). |
+| `redis_get` | GET a key; defaults to local 127.0.0.1:6379; docker:redis fallback. |
 | `maps_geocode` | Forward geocode (Google with key, else nominatim). |
 | `maps_directions` | Routing (Google with key, else straight-line km). |
-| `drive_list` | List `rclone` remote path (needs `RCLONE_REMOTE`). |
+| `drive_list` | List `rclone` remote; auto-picks when one remote exists. |
 | `drive_get` | Download remote file into writable roots. Prompts. |
-| `slack_list` | List channels (needs `SLACK_BOT_TOKEN`). |
+| `slack_list` | List channels (`SLACK_BOT_TOKEN`; send also works via webhook). |
 | `slack_send` | Post a message. Prompts. |
 
 </details>
@@ -428,13 +432,13 @@ Set under `host-system` → `env` in `claude_desktop_config.json`. Restart Claud
 | `HOST_MCP_RATE_LIMIT` | `60/60` | `N/seconds` per tool family. |
 | `HOST_MCP_LOG_LEVEL` | `WARNING` | Python log level. |
 | `HOST_MCP_MEMORY_FILE` | `~/.local/share/claude-host-mcp/memory.json` | Knowledge-graph file. |
-| `HOST_MCP_WEB_SEARCH` | `off` | `duckduckgo` enables keyless search; `BRAVE_API_KEY` enables Brave. |
-| `HOST_MCP_BROWSER` | `off` | `chrome` enables headless-Chrome tools. |
-| `GITHUB_TOKEN` / `GH_TOKEN` | _(unset)_ | Enables `github_*`. |
+| `HOST_MCP_WEB_SEARCH` | `auto` | Default backend: `auto` (keyless fan-out), `off` disables; `BRAVE_API_KEY` forces Brave. |
+| `HOST_MCP_BROWSER` | `auto` | `auto` uses local Chrome if installed (else fetch_text fallback); `off` disables. |
+| `GITHUB_TOKEN` / `GH_TOKEN` | _(unset)_ | Optional: raises quota + enables create; reads work keyless. |
 | `POSTGRES_DSN` / `REDIS_URL` | _(unset)_ | Default DSNs for `db_*` / `redis_get`. |
 | `GOOGLE_MAPS_API_KEY` | _(unset)_ | Google backend for `maps_*`; else nominatim/fallback. |
 | `RCLONE_REMOTE` | _(unset)_ | e.g. `gdrive:` enables `drive_*`. |
-| `SLACK_BOT_TOKEN` | _(unset)_ | `xoxb-` token enables `slack_*`. |
+| `SLACK_BOT_TOKEN` | _(unset)_ | Bot token for `slack_*`; `SLACK_WEBHOOK_URL` also enables send. |
 
 Example:
 
@@ -510,7 +514,7 @@ PYTHONPATH=src python -m claude_host_mcp.server  # speak JSON-RPC on stdin; see 
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md). Current: `0.5.0`.
+See [CHANGELOG.md](CHANGELOG.md). Current: `0.6.0`.
 
 ## License
 

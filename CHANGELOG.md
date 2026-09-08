@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0 - 2026-09-08
+
+- Everything works keyless by default; keys only upgrade quality/quotas (no more setup-error walls).
+- web_search: default auto fans out to keyless DuckDuckGo HTML + Wikipedia + Instant Answer (deduped); backend param auto|wiki|duck|html|brave; Brave still wins when BRAVE_API_KEY is set. New wiki_search tool for reputable structured lookup.
+- browser_fetch: works with zero config — local Chrome when installed, fetch_text fallback otherwise.
+- github_*: public reads keyless (60/hr); token only raises quota + enables create.
+- db_*: empty dsn auto-discovers local sqlite *.db; db_status probes sqlite/postgres/redis capability.
+- redis_get: defaults to local 127.0.0.1:6379; docker:redis exec fallback when redis-cli is missing.
+- drive_*: RCLONE_REMOTE optional; auto-picks when exactly one rclone remote exists.
+- slack_*: SLACK_WEBHOOK_URL works for send without bot token; SLACK_BOT_TOKEN unlocks channels.
+- safe profile extended: web_search, wiki_search, browser_fetch, github_repo, db_tables, redis_get, maps_*, drive_list, slack_list, db_status all read-only.
+
 ## 0.5.0 - 2026-09-07
 
 - All-in-one suites: 114 tools (was 88), same 8 resources. No new pip dependencies.

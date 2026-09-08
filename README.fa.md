@@ -1,6 +1,6 @@
 # claude-host-mcp
 
-![version](https://img.shields.io/badge/version-0.5.0-blue) ![tools](https://img.shields.io/badge/tools-114-brightgreen) ![resources](https://img.shields.io/badge/resources-8-blueviolet) ![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey) ![license](https://img.shields.io/badge/license-MIT-yellow)
+![version](https://img.shields.io/badge/version-0.6.0-blue) ![tools](https://img.shields.io/badge/tools-116-brightgreen) ![resources](https://img.shields.io/badge/resources-8-blueviolet) ![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey) ![license](https://img.shields.io/badge/license-MIT-yellow)
 
 > سرور MCP محلی که به Claude Desktop دسترسی کنترل‌شده به ماشین میزبان واقعی می‌دهد — نه فقط محیط ایزوله (VM/سشن) خودش.
 
@@ -50,12 +50,12 @@ memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  سشن بعد ی
 
 ## چرا این پروژه؟
 
-تسک‌های Cowork/Code در Claude Desktop داخل سندباکس محدود اجرا می‌شوند. این سرور یک پل به بیرون است: Claude با **۱۱۴ ابزار تایپ‌شده و ۸ ریسورس (۵ ثابت و ۳ تمپلیت)** روی میزبان واقعی کار می‌کند — شل، ترمینال ماندگار، جاب پس‌زمینه، فایل، جست‌وجو، گیت، مانیتورینگ، ژورنال، پورت، داکر، پکیج، شبکه، اسنپشات، زمان، حافظه، تفکر، وب، مرورگر، گیت‌هاب، دیتابیس، نقشه، درایو، اسلک — همه با ریشه‌های محدود، موتور پالیسی، لاگ حسابرسی و گاردریل دستورهای خطرناک.
+تسک‌های Cowork/Code در Claude Desktop داخل سندباکس محدود اجرا می‌شوند. این سرور یک پل به بیرون است: Claude با **۱۱۶ ابزار تایپ‌شده و ۸ ریسورس (۵ ثابت و ۳ تمپلیت)** روی میزبان واقعی کار می‌کند — شل، ترمینال ماندگار، جاب پس‌زمینه، فایل، جست‌وجو، گیت، مانیتورینگ، ژورنال، پورت، داکر، پکیج، شبکه، اسنپشات، زمان، حافظه، تفکر، وب، مرورگر، گیت‌هاب، دیتابیس، نقشه، درایو، اسلک — همه با ریشه‌های محدود، موتور پالیسی، لاگ حسابرسی و گاردریل دستورهای خطرناک.
 
 هدف طراحی: هر کاری که یک توسعه‌دهنده/ادمین لینوکس در ترمینال می‌کند، ایجنت هم بتواند بکند — معنایی، قابل مشاهده، قابل لغو، قابل حسابرسی و قابل برگشت.
 ## ابزارها
 
-۱۱۴ ابزار در دوازده گروه (تأییدشده زنده با handshake استاندارد). فقط ابزارهای مخرب تأیید می‌خواهند (بخش [سیاست تأیید](#سیاست-تأیید)).
+۱۱۶ ابزار در دوازده گروه (تأییدشده زنده با handshake استاندارد). فقط ابزارهای مخرب تأیید می‌خواهند (بخش [سیاست تأیید](#سیاست-تأیید)).
 
 ![معماری](assets/architecture.png)
 
@@ -213,8 +213,9 @@ memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  سشن بعد ی
 | ابزار | توضیح |
 |---|---|
 | `fetch_text` | گرفتن URL و تبدیل به متن آماده LLM (حذف boilerplate، حداکثر ۳ ریدایرکت). |
-| `web_search` | جست‌وجوی duckduckgo بدون کلید یا Brave با کلید. پیش‌فرض خاموش (`HOST_MCP_WEB_SEARCH`). |
-| `browser_fetch` | متن DOM با کروم headless. opt-in (`HOST_MCP_BROWSER=chrome`). |
+| `web_search` | جست‌وجوی keyless-first (ترکیب html و wiki و duck)؛ پارامتر `backend`؛ Brave با کلید. |
+| `wiki_search` | جست‌وجوی اختصاصی ویکی‌پدیا. بدون کلید، معتبر، ساخت‌یافته. |
+| `browser_fetch` | رندر JS با کروم محلی اگر نصب باشد، وگرنه fallback روی fetch_text. |
 | `browser_shot` | اسکرین‌شات PNG در ریشه نوشتنی. opt-in؛ تأیید می‌خواهد. |
 
 ### یکپارچه‌سازی: گیت‌هاب، دیتابیس، نقشه، درایو، اسلک
@@ -223,17 +224,18 @@ memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  سشن بعد ی
 
 | ابزار | توضیح |
 |---|---|
-| `github_repo` | متادیتای ریپو (نیازمند `GITHUB_TOKEN`). |
+| `github_repo` | متادیتای ریپو بدون کلید (۶۰ در ساعت)؛ توکن سهمیه را بالا می‌برد. |
 | `github_issue` | لیست/گرفتن/ساخت issue. ساخت تأیید می‌خواهد. |
 | `github_pr` | لیست/گرفتن/ساخت PR. ساخت تأیید می‌خواهد. |
-| `db_query` | کوئری با اولویت خواندن: sqlite با stdlib و postgres با `psql`. نوشتن نیازمند `confirm=true` و پروفایل full. |
+| `db_query` | کوئری با اولویت خواندن؛ dsn خالی sqlite محلی را پیدا می‌کند. نوشتن نیازمند confirm. |
+| `db_status` | بررسی keyless وضعیت DB: فایل‌های sqlite و دسترسی postgres و redis. |
 | `db_tables` | لیست جدول‌های یک DSN. |
-| `redis_get` | گرفتن کلید با `redis-cli` (نیازمند `REDIS_URL`). |
+| `redis_get` | گرفتن کلید؛ پیش‌فرض لوکال؛ fallback روی docker:redis. |
 | `maps_geocode` | ژئوکد مستقیم (گوگل با کلید، وگرنه nominatim). |
 | `maps_directions` | مسیریابی (گوگل با کلید، وگرنه فاصله خط مستقیم). |
-| `drive_list` | لیست مسیر ریموت `rclone` (نیازمند `RCLONE_REMOTE`). |
+| `drive_list` | لیست ریموت `rclone`؛ اگر یک ریموت باشد خودکار انتخاب می‌کند. |
 | `drive_get` | دانلود فایل ریموت در ریشه نوشتنی. تأیید می‌خواهد. |
-| `slack_list` | لیست کانال‌ها (نیازمند `SLACK_BOT_TOKEN`). |
+| `slack_list` | لیست کانال‌ها (توکن؛ ارسال با webhook هم ممکن است). |
 | `slack_send` | ارسال پیام. تأیید می‌خواهد. |
 
 ### اسنپشات و حسابرسی
@@ -312,13 +314,13 @@ memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  سشن بعد ی
 | `HOST_MCP_RATE_LIMIT` | `60/60` | تعداد/ثانیه به‌ازای خانواده ابزار. |
 | `HOST_MCP_LOG_LEVEL` | `WARNING` | سطح لاگ پایتون. |
 | `HOST_MCP_MEMORY_FILE` | `~/.local/share/claude-host-mcp/memory.json` | فایل گراف دانش. |
-| `HOST_MCP_WEB_SEARCH` | `off` | مقدار `duckduckgo` جست‌وجوی بدون کلید؛ `BRAVE_API_KEY` یعنی Brave. |
-| `HOST_MCP_BROWSER` | `off` | مقدار `chrome` ابزارهای مرورگر headless را فعال می‌کند. |
-| `GITHUB_TOKEN` / `GH_TOKEN` | _(خالی)_ | فعال‌سازی `github_*`. |
+| `HOST_MCP_WEB_SEARCH` | `auto` | بک‌اند پیش‌فرض: `auto` (ترکیب keyless)؛ `off` خاموش؛ `BRAVE_API_KEY` یعنی Brave. |
+| `HOST_MCP_BROWSER` | `auto` | مقدار `auto` از کروم محلی استفاده می‌کند وگرنه fallback؛ مقدار `off` خاموش. |
+| `GITHUB_TOKEN` / `GH_TOKEN` | _(خالی)_ | اختیاری: سهمیه بیشتر + ساخت؛ خواندن بدون کلید کار می‌کند. |
 | `POSTGRES_DSN` / `REDIS_URL` | _(خالی)_ | DSN پیش‌فرض `db_*` و `redis_get`. |
 | `GOOGLE_MAPS_API_KEY` | _(خالی)_ | بک‌اند گوگل `maps_*`؛ وگرنه nominatim. |
 | `RCLONE_REMOTE` | _(خالی)_ | مثل `gdrive:` برای `drive_*`. |
-| `SLACK_BOT_TOKEN` | _(خالی)_ | توکن `xoxb-` برای `slack_*`. |
+| `SLACK_BOT_TOKEN` | _(خالی)_ | توکن ربات؛ `SLACK_WEBHOOK_URL` هم ارسال را فعال می‌کند. |
 
 مثال:
 
@@ -388,7 +390,7 @@ python3 -c "import sys; sys.path.insert(0,'src'); import claude_host_mcp.server;
 
 ## تغییرات
 
-[CHANGELOG.md](CHANGELOG.md) را ببینید. نسخه فعلی: `0.5.0`.
+[CHANGELOG.md](CHANGELOG.md) را ببینید. نسخه فعلی: `0.6.0`.
 
 ## لایسنس
 

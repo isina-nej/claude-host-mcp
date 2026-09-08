@@ -5,23 +5,25 @@ google-drive/google-maps/slack inspirations in ONE server with one policy
 story. Secrets NEVER logged: only tool names, hosts, counts and exit codes
 reach the audit trail.
 
-Credential model (env):
-  HOST_MCP_WEB_SEARCH=off|duckduckgo            (default off; no key needed)
-  BRAVE_API_KEY                                  enables brave backend
-  HOST_MCP_BROWSER=off|chrome                    (default off; headless chrome)
-  GITHUB_TOKEN or GH_TOKEN                       enables github_* (gh CLI fallback)
-  HOST_MCP_DB=off                                default; per-call dsn= overrides
-  POSTGRES_DSN / REDIS_URL                       default DSNs (optional)
-  GOOGLE_MAPS_API_KEY                            enables maps_* (else nominatim)
-  RCLONE_REMOTE                                  e.g. "gdrive:" enables drive_*
-  SLACK_BOT_TOKEN                                enables slack_* (chat:write scope)
+Credential model (env) — every suite works keyless by default; keys only
+upgrade quality/quotas:
+  HOST_MCP_WEB_SEARCH=auto|off|brave|wiki|duck|html   (default auto; keyless)
+  BRAVE_API_KEY                        upgrades web_search to Brave backend
+  HOST_MCP_BROWSER=auto|off|chrome     (default auto; uses local chrome if found)
+  GITHUB_TOKEN or GH_TOKEN             optional; public reads work keyless (60/hr),
+                                       token raises quota + enables create
+  POSTGRES_DSN / REDIS_URL             optional defaults; per-call dsn=/url= overrides.
+                                       sqlite auto-discovers local *.db when dsn empty.
+                                       redis defaults to 127.0.0.1:6379.
+  GOOGLE_MAPS_API_KEY                  optional; maps_* use nominatim/straight-line without it
+  RCLONE_REMOTE                        optional; drive_* auto-pick when one remote exists
+  SLACK_BOT_TOKEN (xoxb-) or SLACK_WEBHOOK_URL  needed for slack_* (Slack API is auth-only)
 
 DB rule: SELECT/WITH... read-only by default; anything else requires
-confirm=true AND full profile. Redirects capped at 3. Browser JS
-execution requires confirm=true.
+confirm=true AND full profile. Redirects capped at 3.
 
-ponytail: web_search duck backend scrapes html; upgrade path is a proper
-JSON endpoint when one is keyless-stable. sqlite goes through stdlib;
+ponytail: keyless HTML scraping is best-effort (selectors drift); upgrade
+path is keyed Brave/Serper when result quality matters. sqlite via stdlib;
 postgres/redis shell to psql/redis-cli when drivers absent.
 """
 
@@ -151,6 +153,54 @@ def _duck_search(query: str, count: int) -> list[dict[str, str]]:
     return out[:count]
 
 
+def _wiki_search(query: str, count: int) -> list[dict[str, str]]:
+    """Keyless Wikipedia full-text search. Reputable, structured, stable API."""
+    params = urllib.parse.urlencode({
+        "action": "query", "list": "search", "srsearch": query,
+        "srlimit": str(min(count, 20)), "format": "json", "origin": "*"})
+    req = urllib.request.Request("https://en.wikipedia.org/w/api.php?" + params,
+                                 headers={"User-Agent": _UA})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read(500000).decode(errors="replace"))
+    out = []
+    for item in (data.get("query", {}) or {}).get("search", [])[:count]:
+        title = item.get("title", "")
+        url = "https://en.wikipedia.org/wiki/" + urllib.parse.quote(title.replace(" ", "_"))
+        snippet = re.sub(r"<[^>]+>", "", item.get("snippet", ""))
+        out.append({"title": title[:150], "url": url,
+                    "snippet": _html.unescape(snippet)[:300]})
+    return out
+
+
+def _duck_html_search(query: str, count: int) -> list[dict[str, str]]:
+    """Keyless DuckDuckGo HTML results scrape. Best-effort; selectors may drift."""
+    params = urllib.parse.urlencode({"q": query})
+    req = urllib.request.Request("https://html.duckduckgo.com/html/?" + params,
+                                 headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) "
+                                                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                                        "Chrome/120 Safari/537.36"})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        html = resp.read(1000000).decode(errors="replace")
+    links = re.findall(r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>',
+                       html, re.S)
+    snips = re.findall(r'class="result__snippet"[^>]*>(.*?)</a>', html, re.S)
+    out = []
+    for i, (href, title) in enumerate(links):
+        if href.startswith("//duckduckgo.com/l/"):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse("https:" + href).query)
+            href = q.get("uddg", [href])[0]
+        if href.startswith("/") and not href.startswith("//"):
+            href = "https://duckduckgo.com" + href
+        title = _html.unescape(re.sub(r"<[^>]+>", "", title)).strip()
+        snippet = _html.unescape(re.sub(r"<[^>]+>", "", snips[i])).strip() if i < len(snips) else ""
+        if href.startswith("http"):
+            out.append({"title": title[:150], "url": href[:500],
+                        "snippet": snippet[:300]})
+        if len(out) >= count:
+            break
+    return out
+
+
 def _brave_search(query: str, count: int) -> list[dict[str, str]]:
     key = _env("BRAVE_API_KEY")
     if not key:
@@ -169,22 +219,105 @@ def _brave_search(query: str, count: int) -> list[dict[str, str]]:
     return out
 
 
-def web_search(query: str, count: int = 8) -> dict[str, Any]:
-    """Web search. Default backend off (set HOST_MCP_WEB_SEARCH=duckduckgo); brave with key."""
+def _dedup(results: list[dict[str, str]], count: int) -> list[dict[str, str]]:
+    seen: set[str] = set()
+    out: list[dict[str, str]] = []
+    for r in results:
+        url = (r.get("url") or "").strip()
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        out.append(r)
+        if len(out) >= count:
+            break
+    return out
+
+
+def wiki_search(query: str, count: int = 5) -> dict[str, Any]:
+    """Dedicated Wikipedia search. Keyless, reputable, structured. Use for definitions/history/science."""
     query = query.strip()
     if not query:
         return {"ok": False, "error": "Empty query."}
     count = max(1, min(int(count), 20))
-    backend = os.environ.get("HOST_MCP_WEB_SEARCH", "off").lower()
-    if _env("BRAVE_API_KEY"):
-        backend = "brave"
-    if backend == "off":
-        return {"ok": False, "error": "Web search disabled. Set HOST_MCP_WEB_SEARCH=duckduckgo or BRAVE_API_KEY."}
     try:
-        results = _brave_search(query, count) if backend == "brave" \
-            else _duck_search(query, count)
-        _policy.audit("web_search", {"backend": backend, "results": len(results)}, True)
-        return {"ok": True, "backend": backend, "results": results}
+        results = _dedup(_wiki_search(query, count), count)
+        _policy.audit("web_search", {"backend": f"wiki({len(results)})",
+                                     "results": len(results)}, True)
+        return {"ok": True, "backend": f"wiki({len(results)})", "results": results}
+    except Exception as exc:
+        _policy.audit("web_search", {"error": type(exc).__name__}, False)
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def db_status() -> dict[str, Any]:
+    """Keyless DB capability probe: sqlite files, postgres reachability, redis reachability."""
+    found = _discover_sqlite(5)
+    pg = shutil.which("psql") is not None
+    redis_cli = shutil.which("redis-cli") is not None
+    redis_up = False
+    if redis_cli:
+        try:
+            proc = _run(["redis-cli", "-u", (_env("REDIS_URL") or "redis://127.0.0.1:6379/0"),
+                         "ping"], timeout=10)
+            redis_up = proc.returncode == 0 and "PONG" in (proc.stdout or "").upper()
+        except Exception:
+            redis_up = False
+    return {"ok": True, "sqlite_files": found,
+            "sqlite_default": ("file:" + found[0]) if found else None,
+            "postgres_client": pg, "redis_client": redis_cli, "redis_up": redis_up}
+
+
+def web_search(query: str, count: int = 8, backend: str = "auto") -> dict[str, Any]:
+    """Keyless-first web search over reputable backends.
+
+    backend auto|wiki|duck|html|brave (duckduckgo is an alias of duck).
+    auto = Brave when BRAVE_API_KEY is set, else keyless fan-out of
+    DuckDuckGo HTML + Wikipedia + DuckDuckGo Instant Answer, deduped.
+    HOST_MCP_WEB_SEARCH sets the default backend (default auto; off disables).
+    """
+    query = query.strip()
+    if not query:
+        return {"ok": False, "error": "Empty query."}
+    count = max(1, min(int(count), 20))
+    want = (backend or "auto").strip().lower()
+    if want == "auto":
+        want = os.environ.get("HOST_MCP_WEB_SEARCH", "auto").strip().lower() or "auto"
+    if want == "duckduckgo":
+        want = "duck"
+    if want == "off":
+        return {"ok": False, "error": "Web search disabled (backend=off)."}
+    if want == "auto" and _env("BRAVE_API_KEY"):
+        want = "brave"
+    if want == "brave" and not _env("BRAVE_API_KEY"):
+        return {"ok": False, "error": "Brave needs BRAVE_API_KEY; use backend=auto for keyless search."}
+    try:
+        if want == "brave":
+            results = _brave_search(query, count)
+            sources = [f"brave({len(results)})"]
+        elif want in ("wiki", "duck", "html"):
+            fn = {"wiki": _wiki_search, "duck": _duck_search,
+                  "html": _duck_html_search}[want]
+            results = _dedup(fn(query, count), count)
+            sources = [f"{want}({len(results)})"]
+        elif want == "auto":
+            results, sources = [], []
+            for fn, name in ((_duck_html_search, "html"), (_wiki_search, "wiki"),
+                             (_duck_search, "duck")):
+                try:
+                    found = fn(query, count)
+                except Exception:
+                    continue
+                if found:
+                    results.extend(found)
+                    sources.append(f"{name}({len(found)})")
+            results = _dedup(results, count)
+            if not results:
+                _policy.audit("web_search", {"backend": "auto", "results": 0}, False)
+                return {"ok": False, "error": "No results from keyless backends (html+wiki+duck)."}
+        else:
+            return {"ok": False, "error": f"Unknown backend {backend!r}; use auto|wiki|duck|html|brave."}
+        _policy.audit("web_search", {"backend": "+".join(sources), "results": len(results)}, True)
+        return {"ok": True, "backend": "+".join(sources), "results": results}
     except Exception as exc:
         _policy.audit("web_search", {"error": type(exc).__name__}, False)
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
@@ -193,15 +326,23 @@ def web_search(query: str, count: int = 8) -> dict[str, Any]:
 # ---------- headless browser ----------
 
 def _chrome() -> str | None:
-    if os.environ.get("HOST_MCP_BROWSER", "off").lower() != "chrome":
+    mode = os.environ.get("HOST_MCP_BROWSER", "auto").strip().lower() or "auto"
+    if mode == "off":
         return None
-    return shutil.which("google-chrome") or shutil.which("chromium") or \
+    if mode not in ("auto", "chrome"):
+        return None
+    found = shutil.which("google-chrome") or shutil.which("chromium") or \
         shutil.which("chromium-browser")
+    if not found:
+        return None
+    if mode == "chrome" and not found:
+        return None
+    return found
 
 
 def browser_fetch(url: str, max_chars: int = 20000,
                   timeout_seconds: int = 30) -> dict[str, Any]:
-    """Render page in headless Chrome, return DOM text. Needs HOST_MCP_BROWSER=chrome."""
+    """Render JS page, return DOM text. Chrome when installed, else fetch_text fallback."""
     try:
         parsed = urllib.parse.urlparse(url)
     except Exception:
@@ -210,7 +351,15 @@ def browser_fetch(url: str, max_chars: int = 20000,
         return {"ok": False, "error": "Only absolute http(s) URLs are allowed."}
     chrome = _chrome()
     if not chrome:
-        return {"ok": False, "error": "Browser off. Set HOST_MCP_BROWSER=chrome (needs google-chrome)."}
+        from .webdata import fetch_text as _ft
+
+        fallback = fetch_text(url, max_chars, min(int(timeout_seconds), 60))
+        if fallback.get("ok"):
+            fallback["backend"] = "fetch_text(no-chrome)"
+        else:
+            fallback["error"] = (fallback.get("error", "") +
+                                 " (no local chrome; install google-chrome for JS rendering)")
+        return fallback
     timeout = max(5, min(int(timeout_seconds), 120))
     try:
         proc = _run([chrome, "--headless=new", "--disable-gpu", "--no-sandbox",
@@ -220,7 +369,7 @@ def browser_fetch(url: str, max_chars: int = 20000,
         text = _html_to_text(proc.stdout)
         limit = max(100, min(int(max_chars), 200000))
         _policy.audit("browser_fetch", {"host": parsed.hostname}, True)
-        return {"ok": True, "url": url, "body": text[:limit] +
+        return {"ok": True, "url": url, "backend": "chrome", "body": text[:limit] +
                 ("\n\n[truncated]" if len(text) > limit else "")}
     except Exception as exc:
         _policy.audit("browser_fetch", {"error": type(exc).__name__}, False)
@@ -271,29 +420,34 @@ def _gh_token() -> str:
 def _gh_api(path: str, method: str = "GET",
             payload: dict | None = None) -> dict[str, Any]:
     token = _gh_token()
-    if not token:
-        if shutil.which("gh"):
-            return {"ok": False, "error": "GITHUB_TOKEN unset; `gh` CLI fallback needs interactive auth."}
-        return {"ok": False, "error": "Set GITHUB_TOKEN (or GH_TOKEN) to enable github_*."}
     try:
         data = json.dumps(payload).encode() if payload is not None else None
+        headers = {"Accept": "application/vnd.github+json", "User-Agent": _UA}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         req = urllib.request.Request("https://api.github.com" + path, data=data,
-                                     method=method,
-                                     headers={"Authorization": f"Bearer {token}",
-                                              "Accept": "application/vnd.github+json",
-                                              "User-Agent": _UA})
+                                     method=method, headers=headers)
         with urllib.request.urlopen(req, timeout=20) as resp:
             body = resp.read(2000000).decode(errors="replace")
-            return {"ok": True, "status": resp.status,
-                    "data": json.loads(body) if body.strip() else None}
+            out: dict[str, Any] = {"ok": True, "status": resp.status,
+                                   "data": json.loads(body) if body.strip() else None}
+            if not token:
+                out["auth"] = "keyless(60/hr)"
+            return out
     except urllib.error.HTTPError as exc:
-        return {"ok": False, "error": f"GitHub HTTP {exc.code}: {exc.read(2000).decode(errors='replace')[:500]}"}
+        if exc.code == 403 and not token:
+            return {"ok": False, "error": "GitHub rate limit for keyless reads; set GITHUB_TOKEN to continue."}
+        try:
+            detail = exc.read(2000).decode(errors="replace")[:300]
+        except Exception:
+            detail = exc.reason
+        return {"ok": False, "error": f"GitHub HTTP {exc.code}: {detail}"}
     except Exception as exc:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
 def github_repo(full_name: str) -> dict[str, Any]:
-    """Repo metadata: stars, issues, default branch."""
+    """Repo metadata keyless (60/hr); token raises quota. Stars, issues, branch."""
     full_name = full_name.strip()
     if not re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", full_name):
         return {"ok": False, "error": f"Invalid repo: {full_name!r}. Use owner/name."}
@@ -404,9 +558,33 @@ def _db_gate(sql: str, confirm: bool) -> dict[str, Any] | None:
     return None
 
 
+def _discover_sqlite(limit: int = 20) -> list[str]:
+    """Auto-discover local *.db/*.sqlite under readable roots (skips venv/cache)."""
+    from .server import READ_ROOTS
+
+    skip = (".venv", "node_modules", ".cache", "__pycache__", ".git")
+    found: list[str] = []
+    for root in READ_ROOTS:
+        try:
+            if not root.is_dir():
+                continue
+            for dirpath, dirnames, filenames in os.walk(root):
+                dirnames[:] = [d for d in dirnames if d not in skip and not d.startswith(".")]
+                for fn in filenames:
+                    if fn.endswith((".db", ".sqlite", ".sqlite3")):
+                        found.append(str(pathlib.Path(dirpath) / fn))
+                        if len(found) >= limit:
+                            return found
+                if len(found) >= limit:
+                    break
+        except OSError:
+            continue
+    return found
+
+
 def db_query(dsn: str = "", sql: str = "", limit: int = 50,
              confirm: bool = False) -> dict[str, Any]:
-    """Read-only-first SQL over postgres (psql) or sqlite (stdlib). dsn like postgres://.. or file:/path/x.db."""
+    """Read-only-first SQL. Empty dsn auto-discovers local sqlite *.db; postgres via psql."""
     sql = (sql or "").strip().rstrip(";")
     if not sql:
         return {"ok": False, "error": "Empty SQL."}
@@ -416,8 +594,13 @@ def db_query(dsn: str = "", sql: str = "", limit: int = 50,
         return err
     limit = max(1, min(int(limit), 1000))
     dsn = (dsn or _env("POSTGRES_DSN")).strip()
-    if not dsn and os.environ.get("HOST_MCP_DB", "off").lower() == "off":
-        return {"ok": False, "error": "DB off. Pass dsn= (postgres://.. or file:/path.db) or set POSTGRES_DSN."}
+    if not dsn:
+        found = _discover_sqlite(1)
+        if found:
+            dsn = "file:" + found[0]
+        else:
+            return {"ok": False, "error": "No dsn given and no local *.db discovered. Pass dsn=file:/path.db or postgres://..."}
+    _ = os.environ.get("HOST_MCP_DB", "off")  # legacy flag; ignored since 0.6
     try:
         if dsn.startswith("file:") or dsn.endswith(".db") or dsn.endswith(".sqlite"):
             import sqlite3
@@ -454,10 +637,14 @@ def db_query(dsn: str = "", sql: str = "", limit: int = 50,
 
 
 def db_tables(dsn: str = "") -> dict[str, Any]:
-    """List tables: sqlite via stdlib, postgres via psql information_schema."""
+    """List tables. Empty dsn auto-discovers local sqlite *.db."""
     dsn = (dsn or _env("POSTGRES_DSN")).strip()
     if not dsn:
-        return {"ok": False, "error": "Pass dsn= or set POSTGRES_DSN."}
+        found = _discover_sqlite(1)
+        if found:
+            dsn = "file:" + found[0]
+        else:
+            return {"ok": False, "error": "No dsn given and no local *.db discovered."}
     if dsn.startswith("file:") or dsn.endswith(".db") or dsn.endswith(".sqlite"):
         out = db_query(dsn, "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name", 200)
         if out.get("ok"):
@@ -469,15 +656,24 @@ def db_tables(dsn: str = "") -> dict[str, Any]:
 
 
 def redis_get(key: str, url: str = "") -> dict[str, Any]:
-    """GET a redis key via redis-cli. URL from REDIS_URL or url=."""
+    """GET a redis key. Defaults to local 127.0.0.1:6379; REDIS_URL/url= overrides."""
     key = key.strip()
     if not key or len(key) > 500:
         return {"ok": False, "error": "Invalid key."}
-    target = (url or _env("REDIS_URL")).strip()
-    if not target:
-        return {"ok": False, "error": "Set REDIS_URL or pass url=redis://host:6379/0."}
-    if not shutil.which("redis-cli"):
-        return {"ok": False, "error": "redis-cli not found."}
+    target = (url or _env("REDIS_URL") or "redis://127.0.0.1:6379/0").strip()
+    if shutil.which("redis-cli"):
+        pass
+    elif shutil.which("docker"):
+        try:
+            target_host = urllib.parse.urlparse(target).hostname or "127.0.0.1"
+            proc = _run(["docker", "exec", "redis", "redis-cli", "-h", target_host,
+                         "GET", key], timeout=15)
+            if proc.returncode == 0:
+                return {"ok": True, "key": key, "value": (proc.stdout or "")[:8000],
+                        "via": "docker:redis"}
+        except Exception:
+            pass
+        return {"ok": False, "error": "redis-cli not found and no docker:redis container. Install redis-tools or run redis."}
     try:
         proc = _run(["redis-cli", "-u", target, "GET", key], timeout=15)
         if proc.returncode != 0:
@@ -570,13 +766,30 @@ def _remote() -> str:
     return _env("RCLONE_REMOTE")
 
 
-def drive_list(path: str = "", max_entries: int = 100) -> dict[str, Any] | str:
-    """List remote path via rclone. Needs RCLONE_REMOTE like gdrive:."""
+def _resolve_remote() -> tuple[str, str]:
+    """RCLONE_REMOTE, or auto-pick when exactly one rclone remote exists."""
     remote = _remote()
-    if not remote:
-        return {"ok": False, "error": "Set RCLONE_REMOTE (e.g. gdrive:) to enable drive_*."}
+    if remote:
+        return remote, "env"
     if not shutil.which("rclone"):
-        return {"ok": False, "error": "rclone not found."}
+        return "", "rclone not found"
+    try:
+        proc = _run(["rclone", "listremotes"], timeout=15)
+        remotes = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+        if len(remotes) == 1:
+            return remotes[0], "auto"
+        if len(remotes) > 1:
+            return "", f"{len(remotes)} remotes found; set RCLONE_REMOTE to one of {remotes[:5]}"
+    except Exception:
+        pass
+    return "", "Set RCLONE_REMOTE (e.g. gdrive:) to enable drive_*."
+
+
+def drive_list(path: str = "", max_entries: int = 100) -> dict[str, Any] | str:
+    """List remote path via rclone. Auto-picks when one remote exists."""
+    remote, how = _resolve_remote()
+    if not remote:
+        return {"ok": False, "error": how + "."}
     target = f"{remote}{path.strip()}"
     try:
         proc = _run(["rclone", "lsf", "--max-depth", "1", target], timeout=60)
@@ -592,11 +805,9 @@ def drive_get(remote_path: str, dest: str, overwrite: bool = False) -> dict[str,
     """Copy remote file into writable roots via rclone."""
     from .server import WRITE_ROOTS
 
-    remote = _remote()
+    remote, how = _resolve_remote()
     if not remote:
-        return {"ok": False, "error": "Set RCLONE_REMOTE to enable drive_*."}
-    if not shutil.which("rclone"):
-        return {"ok": False, "error": "rclone not found."}
+        return {"ok": False, "error": how + "."}
     if (blocked := _gate("drive_get", "drive")) is not None:
         return blocked
     target, err = _policy.resolve_under(dest, WRITE_ROOTS)
@@ -620,10 +831,28 @@ def drive_get(remote_path: str, dest: str, overwrite: bool = False) -> dict[str,
 
 # ---------- slack ----------
 
+def _slack_webhook() -> str:
+    return _env("SLACK_WEBHOOK_URL")
+
+
 def _slack(method: str, payload: dict) -> dict[str, Any]:
     token = _env("SLACK_BOT_TOKEN")
     if not token:
-        return {"ok": False, "error": "Set SLACK_BOT_TOKEN (xoxb-, chat:write) to enable slack_*."}
+        if method == "chat.postMessage" and _slack_webhook():
+            try:
+                req = urllib.request.Request(_slack_webhook(),
+                                             data=json.dumps({"text": payload.get("text", "")}).encode(),
+                                             method="POST",
+                                             headers={"Content-Type": "application/json",
+                                                      "User-Agent": _UA})
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    if resp.status // 100 == 2:
+                        _policy.audit("slack_send", {"via": "webhook"}, True)
+                        return {"ok": True, "via": "webhook"}
+                return {"ok": False, "error": "Slack webhook rejected the message."}
+            except Exception as exc:
+                return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+        return {"ok": False, "error": "Set SLACK_BOT_TOKEN (xoxb-) or SLACK_WEBHOOK_URL to enable slack_*."}
     try:
         req = urllib.request.Request("https://slack.com/api/" + method,
                                      data=json.dumps(payload).encode(), method="POST",
@@ -690,9 +919,19 @@ def register(mcp) -> None:
         return _self.fetch_text(url, max_chars, timeout_seconds)
 
     @mcp.tool(title="Web search", annotations=_RONET)
-    def web_search(query: str, count: int = 8) -> dict[str, Any]:
-        """Web search (duckduckgo keyless or brave with key). Disabled by default."""
-        return _self.web_search(query, count)
+    def web_search(query: str, count: int = 8, backend: str = "auto") -> dict[str, Any]:
+        """Keyless-first search: auto fans out to html+wiki+duck; brave when keyed."""
+        return _self.web_search(query, count, backend)
+
+    @mcp.tool(title="Wikipedia search", annotations=_RONET)
+    def wiki_search(query: str, count: int = 5) -> dict[str, Any]:
+        """Dedicated Wikipedia search. Keyless, reputable, structured."""
+        return _self.wiki_search(query, count)
+
+    @mcp.tool(title="DB status", annotations=_RO)
+    def db_status() -> dict[str, Any]:
+        """Keyless DB probe: sqlite files, postgres/redis reachability."""
+        return _self.db_status()
 
     @mcp.tool(title="Browser render", annotations=_RONET)
     def browser_fetch(url: str, max_chars: int = 20000,

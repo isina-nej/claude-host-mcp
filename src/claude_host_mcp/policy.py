@@ -155,8 +155,10 @@ SAFE_READONLY = frozenset({
     "terminal_wait", "terminal_list", "job_status", "job_output",
     "job_wait", "job_list", "audit_log", "audit_search",
     "time_now", "time_convert", "time_zones", "memory_recall",
-    "think_list", "fetch_text", "web_search", "browser_fetch",
-    "github_repo", "db_tables", "maps_geocode", "maps_directions",
+    "think_list", "fetch_text", "web_search", "wiki_search",
+    "browser_fetch", "github_repo", "db_tables", "redis_get",
+    "maps_geocode", "maps_directions", "drive_list", "slack_list",
+    "db_status",
 })
 
 
