@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "claude-host-mcp"
-version = "0.6.0"
+version = "0.7.0"
 description = "A portable local MCP server that gives Claude Desktop controlled access to the host machine."
 readme = "README.md"
 requires-python = ">=3.10"

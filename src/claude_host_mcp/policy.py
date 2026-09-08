@@ -159,6 +159,8 @@ SAFE_READONLY = frozenset({
     "browser_fetch", "github_repo", "db_tables", "redis_get",
     "maps_geocode", "maps_directions", "drive_list", "slack_list",
     "db_status",
+    "nine_status", "nine_models", "nine_combos", "nine_providers",
+    "nine_usage", "nine_search",
 })
 
 

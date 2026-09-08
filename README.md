@@ -1,14 +1,14 @@
 # claude-host-mcp
 
-![version](https://img.shields.io/badge/version-0.6.0-blue) ![tools](https://img.shields.io/badge/tools-116-brightgreen) ![resources](https://img.shields.io/badge/resources-8-blueviolet) ![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey) ![license](https://img.shields.io/badge/license-MIT-yellow)
+![version](https://img.shields.io/badge/version-0.7.0-blue) ![tools](https://img.shields.io/badge/tools-130-brightgreen) ![resources](https://img.shields.io/badge/resources-10-blueviolet) ![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey) ![license](https://img.shields.io/badge/license-MIT-yellow)
 
-> **Give Claude Desktop hands on your real machine — safely.** One local MCP server (`host-system`) that lets Claude run shell, manage files, drive dev servers, inspect the system, use git, Docker, GitHub, databases, and the web — on Linux, macOS, and Windows — with approvals, audit, and rollback.
+> **Give Claude Desktop hands on your real machine — safely.** One local MCP server (`host-system`) that lets Claude run shell, manage files, drive dev servers, inspect the system, use git, Docker, GitHub, databases, the web, and your local 9router AI gateway — on Linux, macOS, and Windows — with approvals, audit, and rollback.
 
 ![claude-host-mcp hero](assets/hero.png)
 
 - 🖥️ **Your host, not a sandbox.** Claude sees your real hostname, files, processes, ports — not the VM.
 - 🛡️ **Destructive = prompt.** Reads run free; deletes, kills, commits, restores, and external posts ask first.
-- 🔌 **One server, zero new deps.** 114 tools + 8 resources over stdio. Python 3.10+, `mcp>=2,<3`. Integrations are credential-gated and fail clean without keys.
+- 🔌 **One server, zero new deps.** 130 tools + 10 resources over stdio. Python 3.10+, `mcp>=2,<3`. Integrations are credential-gated and fail clean without keys.
 
 English | [فارسی](README.fa.md)
 
@@ -16,7 +16,7 @@ English | [فارسی](README.fa.md)
 
 ## 🚀 Install — pick your OS (60 seconds)
 
-> **Install first, read later.** Same 114 tools everywhere — the code auto-adapts to your OS.
+> **Install first, read later.** Same 130 tools everywhere — the code auto-adapts to your OS.
 >
 > Three installers, same result: an isolated venv at `~/.local/share/claude-host-mcp` and a `host-system` entry in your Claude config (backed up first).
 
@@ -93,7 +93,7 @@ HOST_MCP_INSTALL_DIR="$HOME/custom-dir" ./install.sh
 | macOS | `./install-mac.sh` | `~/Library/Application Support/Claude/` |
 | Windows | `.\install.ps1` | `%APPDATA%\Claude\` |
 
-> Same 114 tools everywhere — the Python code checks `platform.system()` and adapts: `run_command` → Bash or PowerShell, `process_list` → `ps` or `tasklist`, `service_status` → `systemctl` / `launchctl` / `sc`, `port_list` → `ss` / `lsof` / `netstat` fallback.
+> Same 130 tools everywhere — the Python code checks `platform.system()` and adapts: `run_command` → Bash or PowerShell, `process_list` → `ps` or `tasklist`, `service_status` → `systemctl` / `launchctl` / `sc`, `port_list` → `ss` / `lsof` / `netstat` fallback.
 
 ---
 
@@ -114,8 +114,8 @@ HOST_MCP_INSTALL_DIR="$HOME/custom-dir" ./install.sh
 
 - [Install — pick your OS](#-install--pick-your-os-60-seconds)
 - [What it actually does](#-what-it-actually-does)
-- [Tools (114, twelve groups)](#-tools)
-- [Resources (8)](#-resources)
+- [Tools (130, thirteen groups)](#-tools)
+- [Resources (10)](#-resources)
 - [Approval policy](#-approval-policy) · [Safety at a glance](#-safety-at-a-glance) · [Security](#-security)
 - [Configuration](#-configuration) · [Diagnostics](#-diagnostics) · [Uninstall](#-uninstall) · [Development](#-development)
 
@@ -134,7 +134,8 @@ Claude Desktop ──stdio/JSON-RPC──▶ host-system MCP ──▶ your mach
                                         ├── git + worktrees
                                         ├── system: processes, journal, ports, diagnose, Docker, packages
                                         ├── mind: time, persistent memory, thinking chain
-                                        └── web + integrations: fetch, search, browser, GitHub, DBs, maps, drive, Slack
+                                        ├── web + integrations: fetch, search, browser, GitHub, DBs, maps, drive, Slack
+                                        ├── 9router AI: chat/fanout/image/search (multi-agent)
                                         └── guarded by: scoped roots · profiles · approvals · audit · rate limits
 ```
 
@@ -149,14 +150,14 @@ Claude Desktop ──stdio/JSON-RPC──▶ host-system MCP ──▶ your mach
 **What it does NOT do:** no privilege escalation (`sudo`/`su` blocked), no shutdown/reboot, no disk formatting, no push on your behalf (`git_commit` never pushes), no silent exfiltration (secrets never hit the audit log; integrations need your keys).
 ## 🧰 Tools
 
-116 tools in twelve groups (verified live via stdio handshake). Only destructive tools prompt (see [Approval policy](#-approval-policy)).
+130 tools in thirteen groups (verified live via stdio handshake). Only destructive tools prompt (see [Approval policy](#-approval-policy)).
 
 ![architecture](assets/architecture.png)
 
-**Reading guide:** Core = everyday shell+files · Terminal+Jobs = long-running work without polling · Files/Git = semantic editing with rollback · Ops+Docker = observe then act · Mind+Web+Integrations = memory and outside world, all credential-gated.
+**Reading guide:** Core = everyday shell+files · Terminal+Jobs = long-running work without polling · Files/Git = semantic editing with rollback · Ops+Docker = observe then act · Mind+Web+Integrations = memory and outside world, all credential-gated · 9router = local AI (chat/fanout/image/search).
 
 <details>
-<summary><b>Show all 116 tools</b> — click to expand the full reference</summary>
+<summary><b>Show all 130 tools</b> — click to expand the full reference</summary>
 
 ### Core
 
@@ -335,6 +336,31 @@ All credential-gated: without keys they return setup errors, never crash. Secret
 | `slack_list` | List channels (`SLACK_BOT_TOKEN`; send also works via webhook). |
 | `slack_send` | Post a message. Prompts. |
 
+### 9router: local AI gateway
+
+Your 9router (npm 0.5.69) at `127.0.0.1:20128` becomes 14 tools + 2 resources. Auth is automatic: `NINEROUTER_API_KEY` wins, else the first active key from `~/.9router/db/data.sqlite`. No new setup.
+
+| Tool | Description |
+|---|---|
+| `nine_status` | Health + version. No key needed. Read-only. |
+| `nine_models` | 349 routable combos + provider models. Read-only. |
+| `nine_combos` | 26 bundles (`sina-pro`, `image`, `FastImg`...) with members. Read-only. |
+| `nine_providers` | 37 connections, health only, no secrets. Read-only. |
+| `nine_usage` | Requests, tokens, cost, providers. Read-only. |
+| `nine_chat` | Ask any combo/model. Returns text + usage. |
+| `nine_chat_stream` | SSE chat, concatenated text. |
+| `nine_fanout` | Same prompt to N models in parallel (max 6). Judge/ensemble primitive. |
+| `nine_image` | Generate images (`b64_json`). Auto-picks FastImg member. Verified live. |
+| `nine_tts` | Text-to-speech. Shape passes through. |
+| `nine_stt` | Speech-to-text from base64 audio. |
+| `nine_embeddings` | Embed texts. Shape passes through. |
+| `nine_search` | Web search via 9router `searchapi`. Keyless for you. |
+| `nine_video` | Video generation. Speculative on most hosts. |
+
+Resources: `nine://status`, `nine://models`.
+
+> Multi-agent pattern: `nine_fanout(["sina-economy","sina-pro"], prompt)` → compare → `nine_chat(judge)` → decide. Fanout concurrency is capped at 6 to protect free-tier quotas.
+
 ### Snapshots and audit
 
 | Tool | Description |
@@ -439,6 +465,8 @@ Set under `host-system` → `env` in `claude_desktop_config.json`. Restart Claud
 | `GOOGLE_MAPS_API_KEY` | _(unset)_ | Google backend for `maps_*`; else nominatim/fallback. |
 | `RCLONE_REMOTE` | _(unset)_ | e.g. `gdrive:` enables `drive_*`. |
 | `SLACK_BOT_TOKEN` | _(unset)_ | Bot token for `slack_*`; `SLACK_WEBHOOK_URL` also enables send. |
+| `NINEROUTER_API_KEY` | _(auto from `~/.9router`)_ | Optional override; else first active 9router key. |
+| `NINEROUTER_BASE_URL` | `http://127.0.0.1:20128` | 9router gateway address. |
 
 Example:
 
@@ -514,7 +542,7 @@ PYTHONPATH=src python -m claude_host_mcp.server  # speak JSON-RPC on stdin; see 
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md). Current: `0.6.0`.
+See [CHANGELOG.md](CHANGELOG.md). Current: `0.7.0`.
 
 ## License
 

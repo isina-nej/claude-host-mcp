@@ -964,6 +964,7 @@ from . import files as _files
 from . import gitx as _gitx
 from . import jobs as _jobs
 from . import mind as _mind
+from . import ninerouter as _ninerouter
 from . import ops as _ops
 from . import policy as _policy_mod
 from . import resources as _resources
@@ -981,6 +982,7 @@ _snapshots.register(mcp)
 _resources.register(mcp)
 _mind.register(mcp)
 _webdata.register(mcp)
+_ninerouter.register(mcp)
 
 
 def main() -> None:

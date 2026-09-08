@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0 - 2026-09-08
+
+- 9router suite (14 tools + 2 resources): local AI gateway as first-class MCP.
+- Discovery: nine_status/health+version (keyless), nine_models (349 routable), nine_combos (26 bundles), nine_providers (37 conns, no secrets), nine_usage (tokens/cost/providers).
+- Chat: nine_chat single-shot with usage, nine_chat_stream SSE-concatenated, nine_fanout parallel multi-agent (max 6, judge/ensemble primitive).
+- Media: nine_image (b64_json, FastImg auto-pick, verified 36KB live), nine_tts/nine_stt/nine_embeddings (shapes pass through), nine_video (speculative, 400s verified here).
+- Web: nine_search via 9router searchapi (verified live weather results).
+- Auth: NINEROUTER_API_KEY wins, else auto-reads first active key from ~/.9router sqlite. Probes handle 9router's padded-JSON + `data: [DONE]` suffix.
+- Resources: nine://status, nine://models. nine_* reads in safe profile.
+
 ## 0.6.0 - 2026-09-08
 
 - Everything works keyless by default; keys only upgrade quality/quotas (no more setup-error walls).
