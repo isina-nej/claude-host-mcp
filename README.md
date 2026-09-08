@@ -1,6 +1,6 @@
 # claude-host-mcp
 
-![version](https://img.shields.io/badge/version-0.7.0-blue) ![tools](https://img.shields.io/badge/tools-130-brightgreen) ![resources](https://img.shields.io/badge/resources-10-blueviolet) ![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey) ![license](https://img.shields.io/badge/license-MIT-yellow)
+![version](https://img.shields.io/badge/version-0.8.0-blue) ![tools](https://img.shields.io/badge/tools-146-brightgreen) ![resources](https://img.shields.io/badge/resources-10-blueviolet) ![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey) ![license](https://img.shields.io/badge/license-MIT-yellow)
 
 > **Give Claude Desktop hands on your real machine — safely.** One local MCP server (`host-system`) that lets Claude run shell, manage files, drive dev servers, inspect the system, use git, Docker, GitHub, databases, the web, and your local 9router AI gateway — on Linux, macOS, and Windows — with approvals, audit, and rollback.
 
@@ -8,7 +8,7 @@
 
 - 🖥️ **Your host, not a sandbox.** Claude sees your real hostname, files, processes, ports — not the VM.
 - 🛡️ **Destructive = prompt.** Reads run free; deletes, kills, commits, restores, and external posts ask first.
-- 🔌 **One server, zero new deps.** 130 tools + 10 resources over stdio. Python 3.10+, `mcp>=2,<3`. Integrations are credential-gated and fail clean without keys.
+- 🔌 **One server, zero new deps.** 146 tools + 10 resources over stdio. Vercel/Cloudflare/GitHub managed with link-and-wait auth. Python 3.10+, `mcp>=2,<3`. Integrations are credential-gated and fail clean without keys.
 
 English | [فارسی](README.fa.md)
 
@@ -16,7 +16,7 @@ English | [فارسی](README.fa.md)
 
 ## 🚀 Install — pick your OS (60 seconds)
 
-> **Install first, read later.** Same 130 tools everywhere — the code auto-adapts to your OS.
+> **Install first, read later.** Same 146 tools everywhere — the code auto-adapts to your OS.
 >
 > Three installers, same result: an isolated venv at `~/.local/share/claude-host-mcp` and a `host-system` entry in your Claude config (backed up first).
 
@@ -93,7 +93,7 @@ HOST_MCP_INSTALL_DIR="$HOME/custom-dir" ./install.sh
 | macOS | `./install-mac.sh` | `~/Library/Application Support/Claude/` |
 | Windows | `.\install.ps1` | `%APPDATA%\Claude\` |
 
-> Same 130 tools everywhere — the Python code checks `platform.system()` and adapts: `run_command` → Bash or PowerShell, `process_list` → `ps` or `tasklist`, `service_status` → `systemctl` / `launchctl` / `sc`, `port_list` → `ss` / `lsof` / `netstat` fallback.
+> Same 146 tools everywhere — the Python code checks `platform.system()` and adapts: `run_command` → Bash or PowerShell, `process_list` → `ps` or `tasklist`, `service_status` → `systemctl` / `launchctl` / `sc`, `port_list` → `ss` / `lsof` / `netstat` fallback.
 
 ---
 
@@ -114,7 +114,7 @@ HOST_MCP_INSTALL_DIR="$HOME/custom-dir" ./install.sh
 
 - [Install — pick your OS](#-install--pick-your-os-60-seconds)
 - [What it actually does](#-what-it-actually-does)
-- [Tools (130, thirteen groups)](#-tools)
+- [Tools (146, fourteen groups)](#-tools)
 - [Resources (10)](#-resources)
 - [Approval policy](#-approval-policy) · [Safety at a glance](#-safety-at-a-glance) · [Security](#-security)
 - [Configuration](#-configuration) · [Diagnostics](#-diagnostics) · [Uninstall](#-uninstall) · [Development](#-development)
@@ -136,6 +136,7 @@ Claude Desktop ──stdio/JSON-RPC──▶ host-system MCP ──▶ your mach
                                         ├── mind: time, persistent memory, thinking chain
                                         ├── web + integrations: fetch, search, browser, GitHub, DBs, maps, drive, Slack
                                         ├── 9router AI: chat/fanout/image/search (multi-agent)
+                                        ├── accounts: github/vercel/cloudflare link + manage
                                         └── guarded by: scoped roots · profiles · approvals · audit · rate limits
 ```
 
@@ -150,14 +151,14 @@ Claude Desktop ──stdio/JSON-RPC──▶ host-system MCP ──▶ your mach
 **What it does NOT do:** no privilege escalation (`sudo`/`su` blocked), no shutdown/reboot, no disk formatting, no push on your behalf (`git_commit` never pushes), no silent exfiltration (secrets never hit the audit log; integrations need your keys).
 ## 🧰 Tools
 
-130 tools in thirteen groups (verified live via stdio handshake). Only destructive tools prompt (see [Approval policy](#-approval-policy)).
+146 tools in fourteen groups (verified live via stdio handshake). Only destructive tools prompt (see [Approval policy](#-approval-policy)).
 
 ![architecture](assets/architecture.png)
 
 **Reading guide:** Core = everyday shell+files · Terminal+Jobs = long-running work without polling · Files/Git = semantic editing with rollback · Ops+Docker = observe then act · Mind+Web+Integrations = memory and outside world, all credential-gated · 9router = local AI (chat/fanout/image/search).
 
 <details>
-<summary><b>Show all 130 tools</b> — click to expand the full reference</summary>
+<summary><b>Show all 146 tools</b> — click to expand the full reference</summary>
 
 ### Core
 
@@ -373,24 +374,30 @@ Resources: `nine://status`, `nine://models`.
 | `audit_log` | Last N audit records (paths/sizes only, never contents). |
 | `audit_search` | Filter by tool substring + ok true/false. |
 
-| `fetch_text` | Fetch URL → LLM-ready text (boilerplate stripped, ≤3 redirects). |
-| `web_search` | Keyless-first fan-out (html+wiki+duck, deduped); `backend` auto\|wiki\|duck\|html\|brave; Brave when keyed. |
-| `wiki_search` | Dedicated Wikipedia search. Keyless, reputable, structured. |
-| `browser_fetch` | JS render via local Chrome when installed, fetch_text fallback otherwise. |
-| `browser_shot` | Page screenshot PNG into writable roots. Opt-in; prompts. |
-| `github_repo` | Repo metadata keyless (60/hr); token raises quota. |
-| `github_issue` | List/get/create issues. Create prompts. |
-| `github_pr` | List/get/create PRs. Create prompts. |
-| `db_query` | SELECT-first SQL; empty dsn auto-discovers local sqlite. Writes need `confirm=true` + full profile. |
-| `db_status` | Keyless DB probe: sqlite files, postgres/redis reachability. |
-| `db_tables` | List tables for a DSN. |
-| `redis_get` | GET a key; defaults to local 127.0.0.1:6379; docker:redis fallback. |
-| `maps_geocode` | Forward geocode (Google with key, else nominatim). |
-| `maps_directions` | Routing (Google with key, else straight-line km). |
-| `drive_list` | List `rclone` remote; auto-picks when one remote exists. |
-| `drive_get` | Download remote file into writable roots. Prompts. |
-| `slack_list` | List channels (`SLACK_BOT_TOKEN`; send also works via webhook). |
-| `slack_send` | Post a message. Prompts. |
+### Accounts: link once, manage everything
+
+One token store (`~/.local/share/claude-host-mcp/accounts/*.json`, chmod 600). Never pasted into audit. Resolution everywhere: explicit env → stored → CLI auto-login (`gh`, `vercel`) → keyless.
+
+| Tool | Description |
+|---|---|
+| `accounts` | Linked providers with source + live status. Never returns secrets. Read-only. |
+| `accounts_connect` | Start linking. Returns open-link URL + `request_id` (or `already:true`) **plus a live `login` sub-flow when available**: GitHub device code (`login.user_code` + `login.verification_uri`), Vercel localhost callback (`login.url`) when `HOST_MCP_VERCEL_CLIENT_ID` is set. |
+| `accounts_wait` | Block until you authorize. Polls the live login flow (GitHub device, Vercel callback), then CLI-login state. Poll interval follows the provider (≥5s). |
+| `accounts_complete` | Validate pasted token live, store chmod 600, close request. |
+| `accounts_remove` | Delete a stored token. Prompts. CLI logins untouched. |
+| `vercel_projects` | List projects (name, id, URL). Auto token. Read-only. |
+| `vercel_deployments` | List deployments, optional project filter. Read-only. |
+| `vercel_inspect` | Aliases, state, regions, creator. Read-only. |
+| `vercel_logs` | Build/runtime event tail. Read-only. |
+| `vercel_redeploy` | Rebuild a deployment. Prompts (creates live deploys). |
+| `cloudflare_zones` | Zones (id, name, status, plan). Read-only. |
+| `cloudflare_account` | First account id/name. Read-only. |
+| `cloudflare_dns` | List DNS records for a zone. Read-only. |
+| `cloudflare_dns_create` | Create a DNS record. Prompts. |
+| `cloudflare_dns_delete` | Delete a DNS record by id. Prompts. |
+| `cloudflare_purge` | Purge a zone cache. Prompts. |
+
+> The flow Claude uses: sees `accounts` unlinked → `accounts_connect` returns a **link plus a live login** → you open it and approve → `accounts_wait` notices by itself. GitHub: open `login.verification_uri`, type `login.user_code`, approve (device flow, no app to create; override via `HOST_MCP_GITHUB_CLIENT_ID`). Vercel: with `HOST_MCP_VERCEL_CLIENT_ID` set, open `login.url` and approve on localhost (port via `HOST_MCP_VERCEL_REDIRECT_PORT`, default 8765); without it, `vercel login` in your terminal or a pasted token via `accounts_complete`. Cloudflare: token-only (no OAuth exists) — `accounts_complete` validates live.
 
 </details>
 
@@ -411,7 +418,7 @@ Live context without tool calls:
 
 ## ✅ Approval policy
 
-Only destructive tools prompt: `file_delete`, `file_move`, `terminal_close`, `terminal_signal`, `process_kill`, `job_cancel`, `git_commit`, `git_reset`, `git_revert`, `git_merge`, `git_rebase`, `git_checkout`, `git_clean` (exec), `git_tag` (create/delete), `git_stash` (pop/drop), `git_worktree_*` (create/remove), `snapshot_restore`, `file_restore`, `docker_*` (mutations), `package_*` (mutations), `memory_forget`, `think_clear`, `github_issue`/`github_pr` (create), `db_query` (writes), `browser_shot`, `drive_get`, `slack_send`. Everything else — shell, reads, search, monitoring, journal, ports, diagnose — runs without approval friction.
+Only destructive tools prompt: `file_delete`, `file_move`, `terminal_close`, `terminal_signal`, `process_kill`, `job_cancel`, `git_commit`, `git_reset`, `git_revert`, `git_merge`, `git_rebase`, `git_checkout`, `git_clean` (exec), `git_tag` (create/delete), `git_stash` (pop/drop), `git_worktree_*` (create/remove), `snapshot_restore`, `file_restore`, `docker_*` (mutations), `package_*` (mutations), `memory_forget`, `think_clear`, `github_issue`/`github_pr` (create), `db_query` (writes), `browser_shot`, `drive_get`, `slack_send`, `accounts_remove`, `accounts_complete`, `vercel_redeploy`, `cloudflare_dns_create`, `cloudflare_dns_delete`, `cloudflare_purge`. Everything else — shell, reads, search, monitoring, journal, ports, diagnose — runs without approval friction.
 
 > Caveat: deletion via shell (`rm` / `Remove-Item` inside `run_command`) is NOT blocked and does NOT prompt. Use `file_delete` for guarded deletes that request approval.
 
@@ -467,6 +474,9 @@ Set under `host-system` → `env` in `claude_desktop_config.json`. Restart Claud
 | `SLACK_BOT_TOKEN` | _(unset)_ | Bot token for `slack_*`; `SLACK_WEBHOOK_URL` also enables send. |
 | `NINEROUTER_API_KEY` | _(auto from `~/.9router`)_ | Optional override; else first active 9router key. |
 | `NINEROUTER_BASE_URL` | `http://127.0.0.1:20128` | 9router gateway address. |
+| `HOST_MCP_GITHUB_CLIENT_ID` | _(public default)_ | Override for GitHub device flow. Default is the public GitHub CLI app id (public client, no secret). |
+| `HOST_MCP_VERCEL_CLIENT_ID` | _(unset)_ | Your own Vercel Integration client id. Enables localhost-callback login in `accounts_connect`. |
+| `HOST_MCP_VERCEL_REDIRECT_PORT` | `8765` | Localhost callback port for Vercel OAuth. |
 
 Example:
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- `accounts_connect` now returns a live `login` sub-flow: GitHub device flow (`login.user_code` + `login.verification_uri`, public-client default, override via `HOST_MCP_GITHUB_CLIENT_ID`); Vercel one-shot localhost callback (`login.url`) when `HOST_MCP_VERCEL_CLIENT_ID` is set (port via `HOST_MCP_VERCEL_REDIRECT_PORT`, default 8765). Cloudflare stays token-link (no OAuth).
+- `accounts_wait` polls the live login (device poll / localhost code exchange) before CLI state, honoring provider intervals (≥5s). READMEs EN+FA document the give-link-and-wait loop.
+
+## 0.8.0 - 2026-09-08
+
+- Accounts suite (16 tools): GitHub + Vercel + Cloudflare as managed tools (146 total).
+- One token store (~/.local/share/claude-host-mcp/accounts/*.json, chmod 600); resolution env > stored > CLI auto-login (gh/vercel) > keyless. Secrets never audited.
+- Link + wait flow: accounts_connect returns open-link URL + request_id (or already:true); accounts_wait blocks 5s-poll until you authorize or CLI login appears; accounts_complete validates live then stores.
+- Vercel (auto CLI token): projects, deployments (+project filter), inspect (v13), logs (events tail), redeploy (POST /v13/deployments, prompts). Verified live: 3 projects, sina READY.
+- Cloudflare (token-only, no CLI exists): zones, account, dns list, dns_create/delete, purge. Scope-aware 403s pass through.
+- GitHub reads now also prefer stored token from accounts_complete; gh CLI fallback kept.
+- Policy: 6 new destructive (accounts_remove/complete, vercel_redeploy, cf dns create/delete/purge); 8 new safe-readonly (accounts, vercel reads, cf reads).
+
 ## 0.7.0 - 2026-09-08
 
 - 9router suite (14 tools + 2 resources): local AI gateway as first-class MCP.

@@ -1,6 +1,6 @@
 # claude-host-mcp
 
-![version](https://img.shields.io/badge/version-0.7.0-blue) ![tools](https://img.shields.io/badge/tools-130-brightgreen) ![resources](https://img.shields.io/badge/resources-10-blueviolet) ![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey) ![license](https://img.shields.io/badge/license-MIT-yellow)
+![version](https://img.shields.io/badge/version-0.8.0-blue) ![tools](https://img.shields.io/badge/tools-146-brightgreen) ![resources](https://img.shields.io/badge/resources-10-blueviolet) ![platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey) ![license](https://img.shields.io/badge/license-MIT-yellow)
 
 > سرور MCP محلی که به Claude Desktop دسترسی کنترل‌شده به ماشین میزبان واقعی می‌دهد — نه فقط محیط ایزوله (VM/سشن) خودش.
 
@@ -8,13 +8,13 @@
 
 ساخته‌شده با MCP Python SDK نسخه **v2** (`MCPServer`) و انتقال stdio. با کاربر عادی اجرا می‌شود. روی **لینوکس، مک و ویندوز** کار می‌کند — ابزارها بر اساس سیستم‌عامل تطبیق داده می‌شوند (Bash/PowerShell، ps/tasklist، systemd/launchd/sc).
 
-**یک سرور، کل میزبان:** ترمینال ماندگار · جاب پس‌زمینه · فایل+جست‌وجو · گیت+ورک‌تری · مانیتورینگ · داکر · گیت‌هاب/دیتابیس/اسلک · اسنپشات · حسابرسی · 9router محلی.
+**یک سرور، کل میزبان:** ترمینال ماندگار · جاب پس‌زمینه · فایل+جست‌وجو · گیت+ورک‌تری · مانیتورینگ · داکر · گیت‌هاب/دیتابیس/اسلک · اسنپشات · حسابرسی · 9router محلی · اکانت‌های Vercel/Cloudflare/GitHub.
 
 [English](README.md) | فارسی
 
 ## 🚀 نصب — سیستم‌عاملت رو انتخاب کن (۶۰ ثانیه)
 
-> **یک کدبیس، سه سیستم‌عامل.** همین ۱۳۰ ابزار روی لینوکس، مک و ویندوز — کد خودش را با `platform.system` تطبیق می‌دهد.
+> **یک کدبیس، سه سیستم‌عامل.** همین ۱۴۶ ابزار روی لینوکس، مک و ویندوز — کد خودش را با `platform.system` تطبیق می‌دهد.
 
 ```bash
 git clone https://github.com/isina-nej/claude-host-mcp.git
@@ -50,12 +50,12 @@ memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  سشن بعد ی
 
 ## چرا این پروژه؟
 
-تسک‌های Cowork/Code در Claude Desktop داخل سندباکس محدود اجرا می‌شوند. این سرور یک پل به بیرون است: Claude با **۱۳۰ ابزار تایپ‌شده و ۱۰ ریسورس (۵ ثابت و ۳ تمپلیت)** روی میزبان واقعی کار می‌کند — شل، ترمینال ماندگار، جاب پس‌زمینه، فایل، جست‌وجو، گیت، مانیتورینگ، ژورنال، پورت، داکر، پکیج، شبکه، اسنپشات، زمان، حافظه، تفکر، وب، مرورگر، گیت‌هاب، دیتابیس، نقشه، درایو، اسلک، gateway محلی 9router — همه با ریشه‌های محدود، موتور پالیسی، لاگ حسابرسی و گاردریل دستورهای خطرناک.
+تسک‌های Cowork/Code در Claude Desktop داخل سندباکس محدود اجرا می‌شوند. این سرور یک پل به بیرون است: Claude با **۱۴۶ ابزار تایپ‌شده و ۱۰ ریسورس (۵ ثابت و ۳ تمپلیت)** روی میزبان واقعی کار می‌کند — شل، ترمینال ماندگار، جاب پس‌زمینه، فایل، جست‌وجو، گیت، مانیتورینگ، ژورنال، پورت، داکر، پکیج، شبکه، اسنپشات، زمان، حافظه، تفکر، وب، مرورگر، گیت‌هاب، دیتابیس، نقشه، درایو، اسلک، gateway محلی 9router — همه با ریشه‌های محدود، موتور پالیسی، لاگ حسابرسی و گاردریل دستورهای خطرناک.
 
 هدف طراحی: هر کاری که یک توسعه‌دهنده/ادمین لینوکس در ترمینال می‌کند، ایجنت هم بتواند بکند — معنایی، قابل مشاهده، قابل لغو، قابل حسابرسی و قابل برگشت.
 ## ابزارها
 
-۱۳۰ ابزار در سیزده گروه (تأییدشده زنده با handshake استاندارد). فقط ابزارهای مخرب تأیید می‌خواهند (بخش [سیاست تأیید](#سیاست-تأیید)).
+۱۴۶ ابزار در چهارده گروه (تأییدشده زنده با handshake استاندارد). فقط ابزارهای مخرب تأیید می‌خواهند (بخش [سیاست تأیید](#سیاست-تأیید)).
 
 ![معماری](assets/architecture.png)
 
@@ -263,6 +263,31 @@ memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  سشن بعد ی
 
 > الگوی چندایجنتی: `nine_fanout(["sina-economy","sina-pro"], prompt)` بعد مقایسه بعد `nine_chat` داور و تصمیم. سقف موازی ۶ برای حفظ سهمیه free-tier.
 
+### اکانت‌ها: یک‌بار لینک، همه‌جا مدیریت
+
+یک مخزن توکن (`~/.local/share/claude-host-mcp/accounts/*.json` با chmod 600). هرگز در audit نمی‌آید. ترتیب همه‌جا: env صریح ← ذخیره‌شده ← لاگین خودکار CLI (`gh` و `vercel`) ← بدون کلید.
+
+| ابزار | توضیح |
+|---|---|
+| `accounts` | ارائه‌دهنده‌های لینک‌شده با منبع + وضعیت زنده. هرگز secret برنمی‌گرداند. فقط خواندنی. |
+| `accounts_connect` | شروع لینک. لینک بازکردنی + `request_id` (یا `already:true`) **به‌علاوه `login` زنده وقتی ممکن است**: گیت‌هاب device code (`login.user_code` + `login.verification_uri`)، ورسل callback روی localhost (`login.url`) وقتی `HOST_MCP_VERCEL_CLIENT_ID` ست است. |
+| `accounts_wait` | بلاک تا authorize کنی. اول فلو زنده (device گیت‌هاب، callback ورسل)، بعد وضعیت CLI. فاصله poll از ارائه‌دهنده (حداقل ۵ ثانیه). |
+| `accounts_complete` | اعتبارسنجی توکنِ پیست‌شده به‌صورت زنده، ذخیره chmod 600، بستن درخواست. |
+| `accounts_remove` | حذف توکن ذخیره‌شده. تأیید می‌خواهد. لاگین CLI دست نمی‌خورد. |
+| `vercel_projects` | لیست پروژه‌ها (نام، id، آدرس). توکن خودکار. فقط خواندنی. |
+| `vercel_deployments` | لیست دیپلویمنت‌ها با فیلتر پروژه. فقط خواندنی. |
+| `vercel_inspect` | جزئیات: alias و state و region و سازنده. فقط خواندنی. |
+| `vercel_logs` | دم لاگ build/runtime. فقط خواندنی. |
+| `vercel_redeploy` | ریبیلد دیپلویمنت. تأیید می‌خواهد (دیپلوی زنده می‌سازد). |
+| `cloudflare_zones` | زون‌ها (id و نام و status و plan). فقط خواندنی. |
+| `cloudflare_account` | اولین account. فقط خواندنی. |
+| `cloudflare_dns` | لیست رکوردهای DNS یک زون. فقط خواندنی. |
+| `cloudflare_dns_create` | ساخت رکورد DNS. تأیید می‌خواهد. |
+| `cloudflare_dns_delete` | حذف رکورد DNS با id. تأیید می‌خواهد. |
+| `cloudflare_purge` | پاک کردن کش زون. تأیید می‌خواهد. |
+
+> جریانی که Claude استفاده می‌کند: می‌بیند `accounts` لینک نیست ← `accounts_connect` **لینک + لاگین زنده** می‌دهد ← بازش می‌کنی و approve می‌کنی ← `accounts_wait` خودش می‌فهمد. گیت‌هاب: `login.verification_uri` را باز کن، `login.user_code` را بزن (device flow، بدون ساخت اپ؛ override با `HOST_MCP_GITHUB_CLIENT_ID`). ورسل: با `HOST_MCP_VERCEL_CLIENT_ID` ست، `login.url` را باز کن و روی localhost approve شو (پورت با `HOST_MCP_VERCEL_REDIRECT_PORT`، پیش‌فرض 8765)؛ بدون آن، `vercel login` در ترمینال یا توکن پیست‌شده با `accounts_complete`. کلادفلر: فقط توکن (OAuth ندارد) — `accounts_complete` زنده اعتبارسنجی می‌کند.
+
 ### اسنپشات و حسابرسی
 
 | ابزار | توضیح |
@@ -292,7 +317,7 @@ memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  سشن بعد ی
 
 ## سیاست تأیید
 
-فقط ابزارهای مخرب تأیید می‌خواهند: `file_delete` و `file_move` و `terminal_close` و `terminal_signal` و `process_kill` و `job_cancel` و `git_commit` و `git_reset` و `git_revert` و `git_merge` و `git_rebase` و `git_checkout` و `git_clean` (اجرا) و `git_tag` (ساخت/حذف) و `git_stash` (pop/drop) و `git_worktree_*` (ساخت/حذف) و `snapshot_restore` و `file_restore` و تغییرهای `docker_*` و `package_*` و `memory_forget` و `think_clear` و ساخت `github_issue` و `github_pr` و نوشتن `db_query` و `browser_shot` و `drive_get` و `slack_send`. بقیه — شل، خواندن، جست‌وجو، مانیتورینگ، ژورنال، پورت، diagnose — بدون اصطکاک تأیید اجرا می‌شوند.
+فقط ابزارهای مخرب تأیید می‌خواهند: `file_delete` و `file_move` و `terminal_close` و `terminal_signal` و `process_kill` و `job_cancel` و `git_commit` و `git_reset` و `git_revert` و `git_merge` و `git_rebase` و `git_checkout` و `git_clean` (اجرا) و `git_tag` (ساخت/حذف) و `git_stash` (pop/drop) و `git_worktree_*` (ساخت/حذف) و `snapshot_restore` و `file_restore` و تغییرهای `docker_*` و `package_*` و `memory_forget` و `think_clear` و ساخت `github_issue` و `github_pr` و نوشتن `db_query` و `browser_shot` و `drive_get` و `slack_send` و `accounts_remove` و `accounts_complete` و `vercel_redeploy` و `cloudflare_dns_create` و `cloudflare_dns_delete` و `cloudflare_purge`. بقیه — شل، خواندن، جست‌وجو، مانیتورینگ، ژورنال، پورت، diagnose — بدون اصطکاک تأیید اجرا می‌شوند.
 
 > نکته: حذف از طریق شل (`rm` یا `Remove-Item` داخل `run_command`) بلاک نیست و تأیید نمی‌خواهد. برای حذف محافظت‌شده از `file_delete` استفاده کنید.
 
@@ -348,6 +373,9 @@ memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  سشن بعد ی
 | `SLACK_BOT_TOKEN` | _(خالی)_ | توکن ربات؛ `SLACK_WEBHOOK_URL` هم ارسال را فعال می‌کند. |
 | `NINEROUTER_API_KEY` | _(خودکار از `~/.9router`)_ | اختیاری؛ وگرنه اولین کلید فعال ناین‌روتر. |
 | `NINEROUTER_BASE_URL` | `http://127.0.0.1:20128` | آدرس gateway ناین‌روتر. |
+| `HOST_MCP_GITHUB_CLIENT_ID` | _(پیش‌فرض عمومی)_ | override برای device flow گیت‌هاب. پیش‌فرض همان اپ عمومی GitHub CLI است (کلاینت عمومی، بدون secret). |
+| `HOST_MCP_VERCEL_CLIENT_ID` | _(خالی)_ | client id اینتگریشن ورسل خودت. لاگین localhost-callback را در `accounts_connect` فعال می‌کند. |
+| `HOST_MCP_VERCEL_REDIRECT_PORT` | `8765` | پورت callback روی localhost برای OAuth ورسل. |
 
 مثال:
 

@@ -960,6 +960,7 @@ def download_file(url: str, dest: str, overwrite: bool = False, timeout_seconds:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
 
+from . import accounts as _accounts
 from . import files as _files
 from . import gitx as _gitx
 from . import jobs as _jobs
@@ -983,6 +984,7 @@ _resources.register(mcp)
 _mind.register(mcp)
 _webdata.register(mcp)
 _ninerouter.register(mcp)
+_accounts.register(mcp)
 
 
 def main() -> None:

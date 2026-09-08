@@ -145,6 +145,9 @@ DESTRUCTIVE = frozenset({
     "service_restart", "memory_forget", "think_clear",
     "github_issue_create", "github_pr_create", "db_write",
     "browser_shot", "drive_get", "slack_send",
+    "accounts_remove", "accounts_complete",
+    "vercel_redeploy", "cloudflare_dns_create", "cloudflare_dns_delete",
+    "cloudflare_purge",
 })
 
 SAFE_READONLY = frozenset({
@@ -161,6 +164,8 @@ SAFE_READONLY = frozenset({
     "db_status",
     "nine_status", "nine_models", "nine_combos", "nine_providers",
     "nine_usage", "nine_search",
+    "accounts", "vercel_projects", "vercel_deployments", "vercel_inspect",
+    "vercel_logs", "cloudflare_zones", "cloudflare_account", "cloudflare_dns",
 })
 
 
