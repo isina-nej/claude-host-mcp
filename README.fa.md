@@ -402,7 +402,16 @@ memory_store("my-project", "Next.js 15, pnpm, port 3000")  →  سشن بعد ی
 
 ## توسعه
 
-ساختار: `src/claude_host_mcp/` (فایل‌های `server.py` و `sessions.py` و `jobs.py` و `policy.py` و `files.py` و `gitx.py` و `ops.py` و `snapshots.py` و `resources.py` و `mind.py` و `webdata.py`) و `pyproject.toml` (hatchling) و `install.sh` و `install-mac.sh` و `install.ps1` و `doctor.sh` و `doctor.ps1` و `uninstall.sh` و `uninstall.ps1`.
+ساختار: `src/claude_host_mcp/` (فایل‌های `server.py` و `sessions.py` و `jobs.py` و `policy.py` و `files.py` و `gitx.py` و `ops.py` و `snapshots.py` و `resources.py` و `mind.py` و `webdata.py` و `ninerouter.py`) و `skills/` (دو اسکیل `morning-diagnose` و `safe-deploy`) و `pyproject.toml` و اسکریپت‌های نصب.
+
+### اسکیل‌ها
+
+دو اسکیل متنی در `skills/`. بدون کد، فقط ترتیب ثابت ابزار. ساخته‌شده از الگوی واقعی `audit.jsonl` (تکرار `edit_file`، حلقه `web_search`، استفاده `nine_fanout`).
+
+- `morning-diagnose`: اول `diagnose`، بعد لایه (`service_status` و `journal_query` و `process_list` و `port_owner`)، بعد `snapshot_create`، بعد `edit_file` با dry run، بعد verify، مسیر fail با `file_restore` و `audit_log`.
+- `safe-deploy`: اول `snapshot_create`، بعد `edit_file` با dry run، بعد `git_diff` و تست با `job_start` و `job_wait`، بعد `git_commit` بدون push، مسیر قرمز با `file_restore` و `audit_log`.
+
+تریگر: سرویس down یا «بالا نمیاد» ← morning-diagnose. پچ یا فیکس یا «درستش کن» ← safe-deploy.
 
 ```python
 from mcp.server import MCPServer

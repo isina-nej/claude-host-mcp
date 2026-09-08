@@ -521,7 +521,16 @@ Removes `host-system` entry (config backed up first) and installed runtime. Rest
 
 ## Development
 
-Layout: `src/claude_host_mcp/` (`server.py`, `sessions.py`, `jobs.py`, `policy.py`, `files.py`, `gitx.py`, `ops.py`, `snapshots.py`, `resources.py`, `mind.py`, `webdata.py`), `pyproject.toml` (hatchling), `install.sh`, `install-mac.sh`, `install.ps1`, `doctor.sh`, `doctor.ps1`, `uninstall.sh`, `uninstall.ps1`.
+Layout: `src/claude_host_mcp/` (`server.py`, `sessions.py`, `jobs.py`, `policy.py`, `files.py`, `gitx.py`, `ops.py`, `snapshots.py`, `resources.py`, `mind.py`, `webdata.py`, `ninerouter.py`), `skills/` (`morning-diagnose`, `safe-deploy`), `pyproject.toml` (hatchling), `install.sh`, `install-mac.sh`, `install.ps1`, `doctor.sh`, `doctor.ps1`, `uninstall.sh`, `uninstall.ps1`.
+
+### Skills
+
+Two prompt-only skills live in `skills/`. No code, just fixed tool order. Built from real `audit.jsonl` patterns (`edit_file` bursts, `web_search` loops, `nine_fanout` usage).
+
+- `morning-diagnose`: `diagnose` → layer drill (`service_status`, `journal_query`, `process_list`, `port_owner`) → `snapshot_create` → `edit_file` (dry run first) → verify (`git_diff`, `journal_query`, `port_check`) → fail path `file_restore` + `audit_log`.
+- `safe-deploy`: `snapshot_create` → `edit_file` (dry run) → `git_diff` + `job_start`/`job_wait` tests → `git_commit` (never push) → red path `file_restore` + `audit_log`.
+
+Triggers: service down / "بالا نمیاد" → morning-diagnose. Patch/fix/deploy / "درستش کن" → safe-deploy.
 
 ```python
 from mcp.server import MCPServer
