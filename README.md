@@ -4,11 +4,32 @@
 
 > **Give Claude Desktop hands on your real machine — safely.** One local MCP server (`host-system`) that lets Claude run shell, manage files, drive dev servers, inspect the system, use git, Docker, GitHub, databases, the web, and your local 9router AI gateway — on Linux, macOS, and Windows — with approvals, audit, and rollback.
 
+## Install now
+
+```bash
+git clone https://github.com/isina-nej/claude-host-mcp.git && cd claude-host-mcp && chmod +x install.sh && ./install.sh
+```
+
+**macOS:** replace `./install.sh` with `./install-mac.sh` · **Windows PowerShell:** `git clone https://github.com/isina-nej/claude-host-mcp.git; cd claude-host-mcp; Set-ExecutionPolicy -Scope Process Bypass; .\install.ps1`
+
+Then fully quit Claude Desktop, reopen it, and call `host_identity` in a new session. Detailed OS instructions are below.
+
 ![claude-host-mcp hero](assets/hero.png)
 
 - 🖥️ **Your host, not a sandbox.** Claude sees your real hostname, files, processes, ports — not the VM.
 - 🛡️ **Destructive = prompt.** Reads run free; deletes, kills, commits, restores, and external posts ask first.
 - 🔌 **One server, zero new deps.** 146 tools + 10 resources over stdio. Vercel/Cloudflare/GitHub managed with link-and-wait auth. Python 3.10+, `mcp>=2,<3`. Integrations are credential-gated and fail clean without keys.
+
+## Who is it for, and when is it useful?
+
+| Who | Use it when | Typical jobs |
+|---|---|---|
+| Developers | Claude must work on the real project or keep processes alive outside its sandbox | Edit files, run dev servers/REPLs, use git/worktrees, debug localhost |
+| DevOps, SRE, sysadmins | Host operations need visibility, approvals, audit, and rollback | Inspect processes, ports, logs, services, Docker, packages, and system health |
+| AI and automation builders | One MCP should replace a pile of host-side scripts and narrow integrations | Combine shell, files, browser/web, GitHub, databases, Slack, and local 9router models |
+| Self-hosters and technical power users | Claude should help operate a workstation or homelab without unrestricted root access | Diagnose services, manage files, monitor resources, and run guarded maintenance |
+
+**Where:** install it on the Linux, macOS, or Windows machine running Claude Desktop. It is most useful on development workstations and self-hosted machines where the built-in sandbox cannot reach the host. **Skip it** for chat/research-only use or when Claude's mounted-folder tools already cover the job.
 
 English | [فارسی](README.fa.md)
 
